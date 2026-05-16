@@ -77,9 +77,14 @@ async def list_transactions(
                     "description": t.description or "",
                     "status": t.status,
                     "reference": t.reference or "",
+                    "entity": p.entity_number if p else None,
+                    "paymentReference": p.payment_reference if p else None,
+                    "paymentMethod": p.method if p else None,
+                    "expiresAt": p.expires_at.isoformat() if p and p.expires_at else None,
+                    "paidAt": p.paid_at.isoformat() if p and p.paid_at else None,
                     "createdAt": t.created_at.isoformat(),
                 }
-                for t in items
+                for t, p in items
             ],
             "total": total,
             "page": page,

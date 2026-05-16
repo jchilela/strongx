@@ -33,7 +33,7 @@ export function TransactionHistory() {
               <th>Date</th>
               <th>Type</th>
               <th>Description</th>
-              <th className="hidden md:table-cell">Reference</th>
+              <th className="hidden lg:table-cell">Entity / Reference</th>
               <th>Amount</th>
               <th>Status</th>
             </tr>
@@ -52,8 +52,15 @@ export function TransactionHistory() {
                     <TransactionTypeBadge type={tx.type} />
                   </td>
                   <td className="text-gray-700 text-sm">{tx.description}</td>
-                  <td className="hidden md:table-cell font-mono text-xs text-gray-500">
-                    {tx.reference}
+                  <td className="hidden lg:table-cell font-mono text-xs text-gray-500">
+                    {tx.entity && tx.paymentReference ? (
+                      <span>
+                        <span className="text-gray-400">{tx.entity} / </span>
+                        {tx.paymentReference}
+                      </span>
+                    ) : (
+                      tx.reference || '—'
+                    )}
                   </td>
                   <td
                     className={`font-semibold text-sm ${

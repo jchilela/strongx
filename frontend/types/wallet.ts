@@ -1,5 +1,5 @@
 export type TransactionType = 'credit' | 'debit';
-export type TransactionStatus = 'pending' | 'completed' | 'failed' | 'cancelled';
+export type TransactionStatus = 'pending' | 'completed' | 'failed' | 'cancelled' | 'expired';
 export type PaymentMethod = 'gpo' | 'reference';
 
 export interface WalletBalance {
@@ -16,9 +16,12 @@ export interface Transaction {
   description: string;
   status: TransactionStatus;
   reference: string;
+  entity?: string;
+  paymentReference?: string;
   paymentMethod?: PaymentMethod;
+  expiresAt?: string;
+  paidAt?: string;
   createdAt: string;
-  completedAt?: string;
 }
 
 export interface TopUpRequest {

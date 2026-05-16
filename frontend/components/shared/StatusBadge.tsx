@@ -30,6 +30,7 @@ export function TransactionStatusBadge({ status }: TransactionStatusBadgeProps) 
     completed: { label: 'Completed', variant: 'success' },
     failed: { label: 'Failed', variant: 'destructive' },
     cancelled: { label: 'Cancelled', variant: 'secondary' },
+    expired: { label: 'Expired', variant: 'secondary' },
   };
 
   const { label, variant } = config[status] || { label: status, variant: 'secondary' };

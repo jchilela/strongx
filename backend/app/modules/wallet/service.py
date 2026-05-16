@@ -153,16 +153,99 @@ def _parse_date(value: Optional[str]) -> Optional[datetime]:
 
 async def list_transactions(
     db: AsyncSession, user_id: uuid.UUID, page: int, page_size: int
-) -> tuple[list[WalletTransaction], int]:
-    base = select(WalletTransaction).where(WalletTransaction.user_id == user_id)
-    count = await db.execute(select(func.count()).select_from(base.subquery()))
-    total = count.scalar_one()
+) -> tuple[list[tuple[WalletTransaction, Optional[Payment]]], int]:
+    count_q = await db.execute(
+        select(func.count())
+        .select_from(WalletTransaction)
+        .where(WalletTransaction.user_id == user_id)
+    )
+    total = count_q.scalar_one()
     result = await db.execute(
-        base.order_by(WalletTransaction.created_at.desc())
+        select(WalletTransaction, Payment)
+        .outerjoin(Payment, Payment.wallet_transaction_id == WalletTransaction.id)
+        .where(WalletTransaction.user_id == user_id)
+        .order_by(WalletTransaction.created_at.desc())
         .offset((page - 1) * page_size)
         .limit(page_size)
     )
-    return list(result.scalars().all()), total
+    return list(result.all()), total
+
+
+async def sync_pending_payments(db: AsyncSession) -> int:
+    """Poll AppyPay for all pending payments and apply status updates. Returns count synced."""
+    result = await db.execute(
+        select(Payment).where(Payment.status == "pending")
+    )
+    pending = list(result.scalars().all())
+    if not pending:
+        return 0
+
+    token = await _get_appypay_token()
+    synced = 0
+
+    async with httpx.AsyncClient(timeout=30) as client:
+        for payment in pending:
+            if not payment.provider_id:
+                continue
+            resp = await client.get(
+                f"{settings.APPYPAY_BASE_URL}/v2.0/charges/{payment.provider_id}",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+            if resp.status_code != 200:
+                logger.warning(f"AppyPay poll {payment.provider_id}: {resp.status_code}")
+                continue
+
+            data = resp.json()
+            response_status = data.get("responseStatus", {})
+            successful = response_status.get("successful")
+            provider_status = data.get("status") or response_status.get("status")
+
+            from app.modules.webhooks.appypay import _map_appypay_status
+            new_status = _map_appypay_status(successful, provider_status)
+
+            if new_status == payment.status:
+                continue
+
+            payment.status = new_status
+            payment.provider_successful = successful
+            payment.provider_status = provider_status
+
+            if new_status == "paid":
+                payment.paid_at = datetime.now(timezone.utc)
+
+                wallet_result = await db.execute(
+                    select(Wallet).where(Wallet.user_id == payment.user_id).with_for_update()
+                )
+                wallet = wallet_result.scalar_one_or_none()
+                if wallet:
+                    wallet.balance += payment.amount
+
+                if payment.wallet_transaction_id:
+                    txn_result = await db.execute(
+                        select(WalletTransaction).where(
+                            WalletTransaction.id == payment.wallet_transaction_id
+                        ).with_for_update()
+                    )
+                    txn = txn_result.scalar_one_or_none()
+                    if txn:
+                        txn.status = "completed"
+
+            elif new_status in TERMINAL_STATUSES:
+                if payment.wallet_transaction_id:
+                    txn_result = await db.execute(
+                        select(WalletTransaction).where(
+                            WalletTransaction.id == payment.wallet_transaction_id
+                        ).with_for_update()
+                    )
+                    txn = txn_result.scalar_one_or_none()
+                    if txn:
+                        txn.status = new_status
+
+            synced += 1
+            logger.info(f"AppyPay poll: payment {payment.id} → {new_status}")
+
+    await db.flush()
+    return synced
 
 
 async def list_payments(
