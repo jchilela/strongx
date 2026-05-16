@@ -1,0 +1,93 @@
+### Variables
+@base_url = https://api.strongx.it.ao
+@api_key = strx_YOUR_API_KEY_HERE
+@jwt_token = YOUR_JWT_TOKEN
+
+### Health check
+GET {{base_url}}/health
+
+### Register
+POST {{base_url}}/auth/register
+Content-Type: application/json
+
+{
+  "full_name": "João Silva",
+  "email": "joao@example.com",
+  "phone": "+244923456789",
+  "password": "Secure@Pass123!"
+}
+
+### Verify Phone OTP
+POST {{base_url}}/auth/verify-phone
+Content-Type: application/json
+
+{"phone": "+244923456789", "otp": "123456"}
+
+### Login
+POST {{base_url}}/auth/login
+Content-Type: application/json
+
+{"email": "joao@example.com", "password": "Secure@Pass123!"}
+
+### Get wallet balance
+GET {{base_url}}/wallet/balance
+Authorization: Bearer {{jwt_token}}
+
+### Top up wallet (Reference/ATM)
+POST {{base_url}}/wallet/topup
+Authorization: Bearer {{jwt_token}}
+Content-Type: application/json
+
+{"amount": 5000.00, "method": "reference", "name": "João Silva", "email": "joao@example.com"}
+
+### Send SMS
+POST {{base_url}}/v1/sms/send
+Authorization: Bearer {{api_key}}
+Content-Type: application/json
+
+{"to": "244923456789", "message": "Hello from StrongX!"}
+
+### Send Email
+POST {{base_url}}/v1/email/send
+Authorization: Bearer {{api_key}}
+Content-Type: application/json
+
+{
+  "to": "recipient@example.com",
+  "subject": "Test Email",
+  "body_html": "<p>Hello from <strong>StrongX</strong>!</p>",
+  "body_text": "Hello from StrongX!"
+}
+
+### Send WhatsApp
+POST {{base_url}}/v1/whatsapp/send
+Authorization: Bearer {{api_key}}
+Content-Type: application/json
+
+{"to": "+244923456789", "message": "Hello via WhatsApp from StrongX!"}
+
+### Create API key
+POST {{base_url}}/developer/keys
+Authorization: Bearer {{jwt_token}}
+Content-Type: application/json
+
+{"name": "Production Key", "application_id": null}
+
+### List applications
+GET {{base_url}}/applications/
+Authorization: Bearer {{jwt_token}}
+
+### Create application
+POST {{base_url}}/applications/
+Authorization: Bearer {{jwt_token}}
+Content-Type: application/json
+
+{"name": "My Store", "description": "E-commerce notification app"}
+
+### Get SMS history
+GET {{base_url}}/v1/sms/messages?page=1&limit=20
+Authorization: Bearer {{jwt_token}}
+
+### Get notifications
+GET {{base_url}}/notifications/
+Authorization: Bearer {{jwt_token}}

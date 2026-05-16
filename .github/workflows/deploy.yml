@@ -1,0 +1,142 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: strongx
+          POSTGRES_PASSWORD: strongx_pass
+          POSTGRES_DB: strongx_test
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+      redis:
+        image: redis:7
+        ports: ["6379:6379"]
+        options: --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          pip install -r requirements.txt
+
+      - name: Run backend tests
+        env:
+          DATABASE_URL: postgresql+asyncpg://strongx:strongx_pass@localhost:5432/strongx_test
+          REDIS_URL: redis://localhost:6379
+          SECRET_KEY: test-secret-key
+          JWT_SECRET_KEY: test-jwt-secret
+          APP_ENV: testing
+        run: |
+          cd backend
+          pytest tests/ -v --tb=short
+
+  build-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: cd frontend && npm ci
+
+      - name: Build frontend
+        env:
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+          NEXT_PUBLIC_WS_URL: ${{ secrets.NEXT_PUBLIC_WS_URL }}
+          NEXT_PUBLIC_APP_NAME: StrongX
+        run: cd frontend && npm run build
+
+  deploy:
+    needs: [test, build-frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
+
+      - name: Add server to known hosts
+        run: ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Create .env on server
+        run: |
+          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "cat > /opt/strongx/.env << 'ENVEOF'
+          APP_NAME=StrongX
+          APP_ENV=production
+          SECRET_KEY=${{ secrets.SECRET_KEY }}
+          DEBUG=false
+          DATABASE_URL=${{ secrets.DATABASE_URL }}
+          REDIS_URL=${{ secrets.REDIS_URL }}
+          JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
+          JWT_ALGORITHM=HS256
+          ACCESS_TOKEN_EXPIRE_MINUTES=15
+          REFRESH_TOKEN_EXPIRE_DAYS=7
+          TELCOSMS_URL=https://telcosms.co.ao/send_message
+          TELCOSMS_USERNAME=${{ secrets.TELCOSMS_USERNAME }}
+          TELCOSMS_PASSWORD=${{ secrets.TELCOSMS_PASSWORD }}
+          TELCOSMS_FROM=StrongX
+          TWILIO_ACCOUNT_SID=${{ secrets.TWILIO_ACCOUNT_SID }}
+          TWILIO_AUTH_TOKEN=${{ secrets.TWILIO_AUTH_TOKEN }}
+          TWILIO_SENDGRID_API_KEY=${{ secrets.TWILIO_SENDGRID_API_KEY }}
+          TWILIO_WHATSAPP_FROM=${{ secrets.TWILIO_WHATSAPP_FROM }}
+          APPYPAY_TOKEN_URL=${{ secrets.APPYPAY_TOKEN_URL }}
+          APPYPAY_CLIENT_ID=${{ secrets.APPYPAY_CLIENT_ID }}
+          APPYPAY_CLIENT_SECRET=${{ secrets.APPYPAY_CLIENT_SECRET }}
+          APPYPAY_RESOURCE=${{ secrets.APPYPAY_RESOURCE }}
+          APPYPAY_BASE_URL=${{ secrets.APPYPAY_BASE_URL }}
+          APPYPAY_PAYMENT_METHOD_GPO=${{ secrets.APPYPAY_PAYMENT_METHOD_GPO }}
+          APPYPAY_PAYMENT_METHOD_REFERENCE=${{ secrets.APPYPAY_PAYMENT_METHOD_REFERENCE }}
+          APPYPAY_WEBHOOK_TOKEN=${{ secrets.APPYPAY_WEBHOOK_TOKEN }}
+          FRONTEND_URL=https://app.strongx.it.ao
+          API_URL=https://api.strongx.it.ao
+          SMS_COST_PER_UNIT=5.00
+          EMAIL_COST_PER_UNIT=1.00
+          WHATSAPP_COST_PER_UNIT=8.00
+          NEXT_PUBLIC_API_URL=https://api.strongx.it.ao
+          NEXT_PUBLIC_WS_URL=https://api.strongx.it.ao
+          NEXT_PUBLIC_APP_NAME=StrongX
+          POSTGRES_USER=strongx
+          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_DB=strongx_db
+          ENVEOF"
+
+      - name: Deploy to server
+        run: |
+          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'DEPLOY'
+            set -e
+            cd /opt/strongx
+            git pull origin main
+            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml up -d --build
+            docker compose -f docker-compose.prod.yml exec -T backend alembic upgrade head
+            docker image prune -f
+          DEPLOY
+
+      - name: Health check
+        run: |
+          sleep 30
+          curl -f https://api.strongx.it.ao/health || exit 1
+          echo "Deployment successful!"
