@@ -16,7 +16,7 @@ from app.modules.users.models import User
 router = APIRouter(prefix="/v1/applications", tags=["applications"])
 
 
-@router.post("/", response_model=ApplicationResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=ApplicationResponse, status_code=status.HTTP_201_CREATED)
 async def create_application(
     data: ApplicationCreate,
     current_user: User = Depends(get_current_active_user),
@@ -26,7 +26,7 @@ async def create_application(
     return ApplicationResponse.model_validate(app)
 
 
-@router.get("/", response_model=list[ApplicationResponse])
+@router.get("", response_model=list[ApplicationResponse])
 async def list_applications(
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),

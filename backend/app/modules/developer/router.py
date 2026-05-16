@@ -17,7 +17,7 @@ from app.modules.users.models import User
 router = APIRouter(prefix="/v1/api-keys", tags=["developer"])
 
 
-@router.post("/", response_model=ApiKeyCreateResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=ApiKeyCreateResponse, status_code=status.HTTP_201_CREATED)
 async def create_api_key(
     data: ApiKeyCreateRequest,
     current_user: User = Depends(get_current_active_user),
@@ -36,7 +36,7 @@ async def create_api_key(
     )
 
 
-@router.get("/", response_model=list[ApiKeyResponse])
+@router.get("", response_model=list[ApiKeyResponse])
 async def list_api_keys(
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
