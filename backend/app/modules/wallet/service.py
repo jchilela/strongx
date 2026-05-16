@@ -93,11 +93,13 @@ async def initiate_topup(
             headers={"Authorization": f"Bearer {token}"},
         )
 
-    if resp.status_code not in (200, 201):
+    data = resp.json()
+    response_status = data.get("responseStatus", {})
+    if not response_status.get("successful"):
         logger.error(f"AppyPay charge error: {resp.status_code} {resp.text}")
         raise ExternalServiceError(f"AppyPay error: {resp.text}")
 
-    data = resp.json()
+    ref_data = response_status.get("reference") or {}
 
     # Create wallet_transaction (pending)
     txn = WalletTransaction(
@@ -123,9 +125,9 @@ async def initiate_topup(
         customer_name=name,
         customer_email=email,
         customer_phone=phone,
-        payment_reference=data.get("reference"),
-        entity_number=data.get("entity"),
-        expires_at=_parse_date(data.get("dueDate") or data.get("due_date")),
+        payment_reference=ref_data.get("referenceNumber"),
+        entity_number=ref_data.get("entity"),
+        expires_at=_parse_date(ref_data.get("dueDate")),
         provider_id=data.get("id"),
         transaction_id=data.get("id"),
     )
