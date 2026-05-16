@@ -28,6 +28,29 @@ export function useTransactions(page = 1, limit = 20) {
   });
 }
 
+export function useSyncPayments() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      const response = await walletApi.syncPayments();
+      return response.data.data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['wallet-balance'] });
+      if (data.synced > 0) {
+        toast.success(`${data.synced} payment${data.synced > 1 ? 's' : ''} updated`);
+      } else {
+        toast.info('No pending payments to update');
+      }
+    },
+    onError: () => {
+      toast.error('Failed to sync payments. Please try again.');
+    },
+  });
+}
+
 export function useTopUp() {
   const queryClient = useQueryClient();
 

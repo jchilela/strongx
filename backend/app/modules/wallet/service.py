@@ -171,11 +171,12 @@ async def list_transactions(
     return list(result.all()), total
 
 
-async def sync_pending_payments(db: AsyncSession) -> int:
+async def sync_pending_payments(db: AsyncSession, user_id: Optional[uuid.UUID] = None) -> int:
     """Poll AppyPay for all pending payments and apply status updates. Returns count synced."""
-    result = await db.execute(
-        select(Payment).where(Payment.status == "pending")
-    )
+    q = select(Payment).where(Payment.status == "pending")
+    if user_id:
+        q = q.where(Payment.user_id == user_id)
+    result = await db.execute(q)
     pending = list(result.scalars().all())
     if not pending:
         return 0
@@ -196,18 +197,25 @@ async def sync_pending_payments(db: AsyncSession) -> int:
                 continue
 
             data = resp.json()
-            response_status = data.get("responseStatus", {})
-            successful = response_status.get("successful")
-            provider_status = data.get("status") or response_status.get("status")
+            # GET /v2.0/charges/{id} wraps the charge under "payment" key
+            payment_data = data.get("payment", data)
+            provider_status = payment_data.get("status", "")
 
-            from app.modules.webhooks.appypay import _map_appypay_status
-            new_status = _map_appypay_status(successful, provider_status)
+            _status_map = {
+                "success": "paid",
+                "pending": "pending",
+                "expired": "expired",
+                "cancelled": "cancelled",
+                "canceled": "cancelled",
+                "failed": "failed",
+            }
+            new_status = _status_map.get(provider_status.lower(), "pending")
 
             if new_status == payment.status:
                 continue
 
             payment.status = new_status
-            payment.provider_successful = successful
+            payment.provider_successful = (new_status == "paid")
             payment.provider_status = provider_status
 
             if new_status == "paid":

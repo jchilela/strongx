@@ -57,6 +57,16 @@ async def topup(
     }
 
 
+@router.post("/payments/sync", status_code=status.HTTP_200_OK)
+async def sync_payments(
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    synced = await service.sync_pending_payments(db, user_id=current_user.id)
+    await db.commit()
+    return {"success": True, "data": {"synced": synced}}
+
+
 @router.get("/transactions")
 async def list_transactions(
     page: int = Query(1, ge=1),

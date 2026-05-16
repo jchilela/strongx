@@ -151,6 +151,8 @@ export const walletApi = {
     api.get<ApiResponse<import('@/types/wallet').TransactionsResponse>>('/wallet/transactions', { params }),
   topUp: (data: import('@/types/wallet').TopUpRequest) =>
     api.post<ApiResponse<import('@/types/wallet').TopUpResponse>>('/wallet/top-up', data),
+  syncPayments: () =>
+    api.post<ApiResponse<{ synced: number }>>('/wallet/payments/sync'),
 };
 
 // Applications endpoints
