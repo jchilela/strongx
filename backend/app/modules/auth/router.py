@@ -7,6 +7,7 @@ from app.modules.auth.dependencies import get_current_active_user
 from app.modules.auth.schemas import (
     AccessTokenResponse,
     ForgotPasswordRequest,
+    LoginData,
     LoginRequest,
     MessageResponse,
     RefreshRequest,
@@ -14,6 +15,8 @@ from app.modules.auth.schemas import (
     ResendOtpRequest,
     ResetPasswordRequest,
     TokenResponse,
+    TokensData,
+    UserData,
     VerifyPhoneRequest,
 )
 from app.modules.users.models import User
@@ -61,13 +64,18 @@ async def verify_email_post(
 @router.post("/login", response_model=TokenResponse)
 async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)) -> TokenResponse:
     result = await service.login_user(db, data.email, data.password)
-    return TokenResponse(**result)
+    return TokenResponse(
+        data=LoginData(
+            user=UserData(**result["user"]),
+            tokens=TokensData(**result["tokens"]),
+        )
+    )
 
 
 @router.post("/refresh", response_model=AccessTokenResponse)
 async def refresh(data: RefreshRequest) -> AccessTokenResponse:
     result = await service.refresh_tokens(data.refresh_token)
-    return AccessTokenResponse(**result)
+    return AccessTokenResponse(data=TokensData(**result))
 
 
 @router.post("/logout", response_model=MessageResponse)
@@ -103,12 +111,13 @@ async def reset_password(
 @router.get("/me")
 async def get_me(current_user: User = Depends(get_current_active_user)) -> dict:
     return {
-        "id": str(current_user.id),
-        "full_name": current_user.full_name,
-        "email": current_user.email,
-        "phone": current_user.phone,
-        "phone_verified": current_user.phone_verified,
-        "email_verified": current_user.email_verified,
-        "is_admin": current_user.is_admin,
-        "created_at": current_user.created_at.isoformat() if current_user.created_at else None,
+        "success": True,
+        "data": {
+            "id": str(current_user.id),
+            "name": current_user.full_name,
+            "email": current_user.email,
+            "phone": current_user.phone,
+            "phoneVerified": current_user.phone_verified,
+            "emailVerified": current_user.email_verified,
+        },
     }

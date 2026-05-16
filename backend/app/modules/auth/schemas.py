@@ -1,7 +1,3 @@
-import uuid
-from datetime import datetime
-from typing import Optional
-
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
@@ -24,7 +20,8 @@ class LoginRequest(BaseModel):
 
 
 class RefreshRequest(BaseModel):
-    refresh_token: str
+    model_config = ConfigDict(populate_by_name=True)
+    refresh_token: str = Field(..., alias="refreshToken")
 
 
 class ResendOtpRequest(BaseModel):
@@ -41,16 +38,34 @@ class ResetPasswordRequest(BaseModel):
     new_password: str = Field(..., min_length=8, max_length=128, alias="password")
 
 
+class UserData(BaseModel):
+    id: str
+    name: str
+    email: str
+    phone: str
+    emailVerified: bool
+    phoneVerified: bool
+
+
+class TokensData(BaseModel):
+    accessToken: str
+    refreshToken: str
+    expiresIn: int
+
+
+class LoginData(BaseModel):
+    user: UserData
+    tokens: TokensData
+
+
 class TokenResponse(BaseModel):
-    access_token: str
-    refresh_token: str
-    token_type: str = "bearer"
-    user: dict
+    success: bool = True
+    data: LoginData
 
 
 class AccessTokenResponse(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
+    success: bool = True
+    data: TokensData
 
 
 class MessageResponse(BaseModel):

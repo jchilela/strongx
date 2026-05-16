@@ -219,14 +219,18 @@ async def login_user(db: AsyncSession, email: str, password: str) -> dict:
     )
 
     return {
-        "access_token": access_token,
-        "refresh_token": refresh_token,
-        "token_type": "bearer",
         "user": {
             "id": str(user.id),
-            "full_name": user.full_name,
+            "name": user.full_name,
             "email": user.email,
             "phone": user.phone,
+            "emailVerified": user.email_verified,
+            "phoneVerified": user.phone_verified,
+        },
+        "tokens": {
+            "accessToken": access_token,
+            "refreshToken": refresh_token,
+            "expiresIn": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         },
     }
 
@@ -250,7 +254,11 @@ async def refresh_tokens(refresh_token: str) -> dict:
         raise UnauthorizedError("Refresh token revoked or expired")
 
     new_access = create_access_token(user_id)
-    return {"access_token": new_access, "token_type": "bearer"}
+    return {
+        "accessToken": new_access,
+        "refreshToken": refresh_token,
+        "expiresIn": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+    }
 
 
 async def logout_user(user_id: uuid.UUID, refresh_token: Optional[str] = None) -> None:
