@@ -6,6 +6,13 @@ from loguru import logger
 from app.core.config import settings
 from app.core.socket import emit_to_user
 
+import app.modules.users.models  # noqa: F401
+import app.modules.applications.models  # noqa: F401
+import app.modules.wallet.models  # noqa: F401
+import app.modules.auth.models  # noqa: F401
+import app.modules.notifications.models  # noqa: F401
+import app.modules.sms.models  # noqa: F401
+
 
 async def send_email_task(
     ctx: dict[str, Any],

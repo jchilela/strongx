@@ -7,6 +7,14 @@ from loguru import logger
 from app.core.config import settings
 from app.core.socket import emit_to_user
 
+# Import all models so SQLAlchemy can resolve cross-model relationships at startup
+import app.modules.users.models  # noqa: F401
+import app.modules.applications.models  # noqa: F401
+import app.modules.wallet.models  # noqa: F401
+import app.modules.auth.models  # noqa: F401
+import app.modules.notifications.models  # noqa: F401
+import app.modules.sms.models  # noqa: F401
+
 
 async def send_sms_task(ctx: dict[str, Any], message_id: str, user_id: str, to: str, message: str) -> None:
     """ARQ worker task: send SMS via telcosms.co.ao and update message status."""
@@ -50,6 +58,7 @@ async def send_sms_task(ctx: dict[str, Any], message_id: str, user_id: str, to: 
     # Update DB
     async with AsyncSessionLocal() as db:
         try:
+            # Ensure all models are imported so SQLAlchemy can resolve relationships
             result = await db.execute(
                 select(Message).where(Message.id == uuid.UUID(message_id))
             )
