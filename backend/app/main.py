@@ -58,6 +58,7 @@ def create_app() -> FastAPI:
     from app.modules.auth.router import router as auth_router
     from app.modules.developer.router import router as developer_router
     from app.modules.email.router import router as email_router
+    from app.modules.messages.router import router as messages_router
     from app.modules.notifications.router import router as notifications_router
     from app.modules.sms.router import router as sms_router
     from app.modules.users.router import router as users_router
@@ -75,6 +76,7 @@ def create_app() -> FastAPI:
     app.include_router(developer_router)
     app.include_router(webhooks_router)
     app.include_router(notifications_router)
+    app.include_router(messages_router)
 
     @app.on_event("startup")
     async def startup() -> None:
