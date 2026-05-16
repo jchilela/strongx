@@ -33,7 +33,7 @@ from app.modules.wallet.models import Wallet
 
 async def _send_otp_sms(phone: str, otp: str) -> None:
     """Send OTP via telcosms.co.ao."""
-    if not settings.TELCOSMS_USERNAME:
+    if not settings.TELCOSMS_API_KEY:
         logger.warning(f"TelcoSMS not configured. OTP for {phone}: {otp}")
         return
     try:
@@ -41,11 +41,11 @@ async def _send_otp_sms(phone: str, otp: str) -> None:
             resp = await client.post(
                 settings.TELCOSMS_URL,
                 json={
-                    "username": settings.TELCOSMS_USERNAME,
-                    "password": settings.TELCOSMS_PASSWORD,
-                    "from": settings.TELCOSMS_FROM,
-                    "to": phone,
-                    "message": f"Your StrongX verification code is: {otp}",
+                    "message": {
+                        "api_key_app": settings.TELCOSMS_API_KEY,
+                        "phone_number": phone,
+                        "message_body": f"Your StrongX verification code is: {otp}",
+                    }
                 },
             )
             if resp.status_code != 200:
@@ -56,7 +56,7 @@ async def _send_otp_sms(phone: str, otp: str) -> None:
 
 async def _send_verification_email(email: str, token: str, full_name: str) -> None:
     """Send email verification link via SendGrid."""
-    verify_url = f"{settings.FRONTEND_URL}/auth/verify-email?token={token}"
+    verify_url = f"{settings.FRONTEND_URL}/verify-email?token={token}"
 
     if not settings.TWILIO_SENDGRID_API_KEY:
         logger.info(f"[EMAIL-VERIFY] To: {email} | Link: {verify_url}")
@@ -84,7 +84,7 @@ async def _send_verification_email(email: str, token: str, full_name: str) -> No
 
 
 async def _send_password_reset_email(email: str, token: str) -> None:
-    reset_url = f"{settings.FRONTEND_URL}/auth/reset-password?token={token}"
+    reset_url = f"{settings.FRONTEND_URL}/reset-password?token={token}"
 
     if not settings.TWILIO_SENDGRID_API_KEY:
         logger.info(f"[PASSWORD-RESET] To: {email} | Link: {reset_url}")

@@ -2,11 +2,12 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 class RegisterRequest(BaseModel):
-    full_name: str = Field(..., min_length=2, max_length=255)
+    model_config = ConfigDict(populate_by_name=True)
+    full_name: str = Field(..., min_length=2, max_length=255, alias="name")
     email: EmailStr
     phone: str = Field(..., pattern=r"^\+?244\d{9}$", description="Angola phone: +244XXXXXXXXX")
     password: str = Field(..., min_length=8, max_length=128)
@@ -35,8 +36,9 @@ class ForgotPasswordRequest(BaseModel):
 
 
 class ResetPasswordRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
     token: str
-    new_password: str = Field(..., min_length=8, max_length=128)
+    new_password: str = Field(..., min_length=8, max_length=128, alias="password")
 
 
 class TokenResponse(BaseModel):

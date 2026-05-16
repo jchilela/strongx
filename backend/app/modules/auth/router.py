@@ -42,9 +42,18 @@ async def verify_phone(
 
 
 @router.get("/verify-email", response_model=MessageResponse)
-async def verify_email(
+async def verify_email_get(
     token: str = Query(...), db: AsyncSession = Depends(get_db)
 ) -> MessageResponse:
+    msg = await service.verify_email(db, token)
+    return MessageResponse(message=msg)
+
+
+@router.post("/verify-email", response_model=MessageResponse)
+async def verify_email_post(
+    data: dict, db: AsyncSession = Depends(get_db)
+) -> MessageResponse:
+    token = data.get("token", "")
     msg = await service.verify_email(db, token)
     return MessageResponse(message=msg)
 
