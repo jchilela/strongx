@@ -108,10 +108,27 @@ export function ApplicationsList() {
                     <p className="text-xs text-gray-400 font-mono">{app.slug}</p>
                   </div>
                 </div>
-                <Badge variant={app.isActive ? 'success' : 'secondary'}>
-                  {app.isActive ? 'Active' : 'Inactive'}
-                </Badge>
+                <div className="flex flex-col items-end gap-1">
+                  <Badge variant={app.isActive ? 'success' : 'secondary'}>
+                    {app.isActive ? 'Active' : 'Inactive'}
+                  </Badge>
+                  {app.status === 'pending' && (
+                    <Badge variant="warning">Pending approval</Badge>
+                  )}
+                  {app.status === 'approved' && (
+                    <Badge variant="info">Approved</Badge>
+                  )}
+                  {app.status === 'rejected' && (
+                    <Badge variant="destructive">Rejected</Badge>
+                  )}
+                </div>
               </div>
+              {app.status === 'rejected' && app.rejectedReason && (
+                <p className="text-xs text-red-500 mb-2">Reason: {app.rejectedReason}</p>
+              )}
+              {app.status === 'pending' && (
+                <p className="text-xs text-amber-600 mb-2">Awaiting admin approval to send messages.</p>
+              )}
 
               {/* Description */}
               {app.description && (

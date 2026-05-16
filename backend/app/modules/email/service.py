@@ -39,7 +39,12 @@ async def send_email(
     body_text: Optional[str] = None,
     application_id: Optional[uuid.UUID] = None,
 ) -> Message:
-    cost = Decimal(str(settings.EMAIL_COST_PER_UNIT))
+    if application_id:
+        from app.modules.applications.service import check_application_approved
+        await check_application_approved(db, application_id)
+
+    from app.modules.sms.service import _get_channel_cost
+    cost = await _get_channel_cost(db, user_id, "email")
     await deduct_wallet_cost(db, user_id, cost, f"Email to {to}")
 
     safe_html = sanitize_html(body_html)
@@ -85,7 +90,12 @@ async def send_bulk_email(
     from sqlalchemy import select
     from app.modules.wallet.models import Wallet
 
-    cost_per = Decimal(str(settings.EMAIL_COST_PER_UNIT))
+    if application_id:
+        from app.modules.applications.service import check_application_approved
+        await check_application_approved(db, application_id)
+
+    from app.modules.sms.service import _get_channel_cost
+    cost_per = await _get_channel_cost(db, user_id, "email")
     total_cost = cost_per * len(recipients)
 
     # Single atomic deduction

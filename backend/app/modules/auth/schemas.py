@@ -45,6 +45,7 @@ class UserData(BaseModel):
     phone: str
     emailVerified: bool
     phoneVerified: bool
+    isAdmin: bool = False
 
 
 class TokensData(BaseModel):

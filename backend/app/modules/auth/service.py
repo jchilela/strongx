@@ -226,6 +226,7 @@ async def login_user(db: AsyncSession, email: str, password: str) -> dict:
             "phone": user.phone,
             "emailVerified": user.email_verified,
             "phoneVerified": user.phone_verified,
+            "isAdmin": user.is_admin,
         },
         "tokens": {
             "accessToken": access_token,

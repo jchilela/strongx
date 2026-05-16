@@ -33,6 +33,7 @@ export function useSyncPayments() {
 
   return useMutation({
     mutationFn: async () => {
+      toast.loading('Checking payment status with AppyPay…', { id: 'sync-payments' });
       const response = await walletApi.syncPayments();
       return response.data.data;
     },
@@ -40,13 +41,14 @@ export function useSyncPayments() {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       queryClient.invalidateQueries({ queryKey: ['wallet-balance'] });
       if (data.synced > 0) {
-        toast.success(`${data.synced} payment${data.synced > 1 ? 's' : ''} updated`);
+        toast.success(`${data.synced} payment${data.synced > 1 ? 's' : ''} confirmed — balance updated`, { id: 'sync-payments' });
       } else {
-        toast.info('No pending payments to update');
+        toast.dismiss('sync-payments');
+        toast.info('Payments checked — no new confirmations yet');
       }
     },
     onError: () => {
-      toast.error('Failed to sync payments. Please try again.');
+      toast.error('Failed to reach AppyPay. Please try again.', { id: 'sync-payments' });
     },
   });
 }

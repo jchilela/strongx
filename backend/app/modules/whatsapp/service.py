@@ -17,7 +17,12 @@ async def send_whatsapp(
     message: str,
     application_id: Optional[uuid.UUID] = None,
 ) -> Message:
-    cost = Decimal(str(settings.WHATSAPP_COST_PER_UNIT))
+    if application_id:
+        from app.modules.applications.service import check_application_approved
+        await check_application_approved(db, application_id)
+
+    from app.modules.sms.service import _get_channel_cost
+    cost = await _get_channel_cost(db, user_id, "whatsapp")
     await deduct_wallet_cost(db, user_id, cost, f"WhatsApp to {to}")
 
     msg = await create_message_record(

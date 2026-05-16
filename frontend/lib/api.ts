@@ -188,3 +188,21 @@ export const settingsApi = {
   updateNotificationPreferences: (data: import('@/types/api').NotificationPreferences) =>
     api.put<ApiResponse<import('@/types/api').NotificationPreferences>>('/settings/notifications', data),
 };
+
+// Admin endpoints
+export const adminApi = {
+  getUsers: () =>
+    api.get<ApiResponse<import('@/types/admin').AdminUser[]>>('/admin/users'),
+  updateUser: (id: string, data: import('@/types/admin').UpdateUserRequest) =>
+    api.put<ApiResponse<import('@/types/admin').AdminUser>>(`/admin/users/${id}`, data),
+  getUserApiKeys: (userId: string) =>
+    api.get<ApiResponse<import('@/types/api').ApiKey[]>>(`/admin/users/${userId}/api-keys`),
+  toggleApiKey: (keyId: string, isActive: boolean) =>
+    api.put<ApiResponse<import('@/types/api').ApiKey>>(`/admin/api-keys/${keyId}`, { isActive }),
+  getApplications: (status?: string) =>
+    api.get<ApiResponse<import('@/types/admin').AdminApplication[]>>('/admin/applications', { params: status ? { status } : undefined }),
+  approveApplication: (appId: string) =>
+    api.post<ApiResponse<import('@/types/admin').AdminApplication>>(`/admin/applications/${appId}/approve`),
+  rejectApplication: (appId: string, reason: string) =>
+    api.post<ApiResponse<import('@/types/admin').AdminApplication>>(`/admin/applications/${appId}/reject`, { reason }),
+};

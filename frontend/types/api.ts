@@ -23,6 +23,8 @@ export interface Application {
   description?: string;
   messageCount: number;
   isActive: boolean;
+  status: 'pending' | 'approved' | 'rejected';
+  rejectedReason?: string;
   createdAt: string;
   updatedAt: string;
 }

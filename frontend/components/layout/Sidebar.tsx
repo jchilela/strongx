@@ -14,6 +14,7 @@ import {
   LogOut,
   X,
   Zap,
+  ShieldCheck,
 } from 'lucide-react';
 import { cn, getInitials } from '@/lib/utils';
 import { clearAuth, getStoredUser } from '@/lib/auth';
@@ -120,6 +121,23 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 </li>
               );
             })}
+            {user?.isAdmin && (
+              <>
+                <li className="pt-3">
+                  <p className="px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Admin</p>
+                </li>
+                <li>
+                  <Link
+                    href="/admin/users"
+                    onClick={onClose}
+                    className={cn('sidebar-item', pathname.startsWith('/admin') && 'active')}
+                  >
+                    <ShieldCheck className="h-4 w-4 flex-shrink-0" />
+                    <span>Admin Panel</span>
+                  </Link>
+                </li>
+              </>
+            )}
           </ul>
         </nav>
 

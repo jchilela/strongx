@@ -57,6 +57,15 @@ async def get_current_active_user(
     return current_user
 
 
+async def get_current_admin_user(
+    current_user: User = Depends(get_current_active_user),
+) -> User:
+    if not current_user.is_admin:
+        from app.core.exceptions import ForbiddenError
+        raise ForbiddenError("Admin access required")
+    return current_user
+
+
 async def get_current_api_key_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme),
     db: AsyncSession = Depends(get_db),

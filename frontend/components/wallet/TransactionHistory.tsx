@@ -18,23 +18,20 @@ export function TransactionHistory() {
   const { data, isLoading } = useTransactions(page, limit);
   const { mutate: syncPayments, isPending: isSyncing } = useSyncPayments();
 
-  const hasPending = data?.transactions?.some((t) => t.status === 'pending');
-
   return (
     <div className="bg-white rounded-xl border border-gray-200">
       <div className="flex items-center justify-between p-5 border-b border-gray-100">
         <h2 className="text-base font-semibold text-gray-900">Transaction History</h2>
         <div className="flex items-center gap-3">
-          {hasPending && (
-            <button
-              onClick={() => syncPayments()}
-              disabled={isSyncing}
-              className="flex items-center gap-1.5 text-xs text-[#6366f1] hover:text-indigo-700 disabled:opacity-50 transition-colors"
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
-              {isSyncing ? 'Checking...' : 'Refresh status'}
-            </button>
-          )}
+          <button
+            onClick={() => syncPayments()}
+            disabled={isSyncing}
+            className="flex items-center gap-1.5 text-xs text-[#6366f1] hover:text-indigo-700 disabled:opacity-50 transition-colors"
+            title="Check AppyPay for payment updates"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+            {isSyncing ? 'Checking...' : 'Refresh status'}
+          </button>
           {data && (
             <span className="text-xs text-gray-400">{data.total} transactions</span>
           )}

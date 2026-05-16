@@ -1,0 +1,158 @@
+import uuid
+from decimal import Decimal
+from typing import Optional
+from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.core.database import get_db
+from app.modules.auth.dependencies import get_current_admin_user
+from app.modules.users.models import User
+from app.modules.admin import service
+
+router = APIRouter(prefix="/v1/admin", tags=["admin"])
+
+
+def _serialize_user(u: User) -> dict:
+    return {
+        "id": str(u.id),
+        "name": u.full_name,
+        "email": u.email,
+        "phone": u.phone,
+        "isActive": u.is_active,
+        "isAdmin": u.is_admin,
+        "emailVerified": u.email_verified,
+        "phoneVerified": u.phone_verified,
+        "smsCost": float(u.sms_cost) if u.sms_cost is not None else None,
+        "emailCost": float(u.email_cost) if u.email_cost is not None else None,
+        "whatsappCost": float(u.whatsapp_cost) if u.whatsapp_cost is not None else None,
+        "createdAt": u.created_at.isoformat(),
+    }
+
+
+def _serialize_app(app) -> dict:
+    return {
+        "id": str(app.id),
+        "userId": str(app.user_id),
+        "name": app.name,
+        "slug": app.slug,
+        "description": app.description,
+        "status": app.status,
+        "rejectedReason": app.rejected_reason,
+        "isActive": app.is_active,
+        "createdAt": app.created_at.isoformat(),
+    }
+
+
+def _serialize_key(k) -> dict:
+    return {
+        "id": str(k.id),
+        "name": k.name,
+        "prefix": k.key_prefix,
+        "applicationId": str(k.application_id) if k.application_id else None,
+        "isActive": k.is_active,
+        "lastUsedAt": k.last_used_at.isoformat() if k.last_used_at else None,
+        "createdAt": k.created_at.isoformat(),
+    }
+
+
+class UpdateUserRequest(BaseModel):
+    isActive: Optional[bool] = None
+    smsCost: Optional[Decimal] = None
+    emailCost: Optional[Decimal] = None
+    whatsappCost: Optional[Decimal] = None
+
+
+class RejectRequest(BaseModel):
+    reason: str
+
+
+class ToggleKeyRequest(BaseModel):
+    isActive: bool
+
+
+@router.get("/users")
+async def list_users(
+    _: User = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    users = await service.list_users(db)
+    return {"success": True, "data": [_serialize_user(u) for u in users]}
+
+
+@router.get("/users/{user_id}")
+async def get_user(
+    user_id: uuid.UUID,
+    _: User = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    user = await service.get_user(db, user_id)
+    return {"success": True, "data": _serialize_user(user)}
+
+
+@router.put("/users/{user_id}")
+async def update_user(
+    user_id: uuid.UUID,
+    data: UpdateUserRequest,
+    _: User = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    user = await service.update_user(
+        db, user_id,
+        is_active=data.isActive,
+        sms_cost=data.smsCost,
+        email_cost=data.emailCost,
+        whatsapp_cost=data.whatsappCost,
+    )
+    return {"success": True, "data": _serialize_user(user)}
+
+
+@router.get("/users/{user_id}/api-keys")
+async def list_user_api_keys(
+    user_id: uuid.UUID,
+    _: User = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    keys = await service.list_user_api_keys(db, user_id)
+    return {"success": True, "data": [_serialize_key(k) for k in keys]}
+
+
+@router.put("/api-keys/{key_id}")
+async def toggle_api_key(
+    key_id: uuid.UUID,
+    data: ToggleKeyRequest,
+    _: User = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    key = await service.toggle_api_key(db, key_id, data.isActive)
+    return {"success": True, "data": _serialize_key(key)}
+
+
+@router.get("/applications")
+async def list_applications(
+    status: Optional[str] = Query(None),
+    _: User = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    apps = await service.list_applications(db, status=status)
+    return {"success": True, "data": [_serialize_app(a) for a in apps]}
+
+
+@router.post("/applications/{app_id}/approve")
+async def approve_application(
+    app_id: uuid.UUID,
+    _: User = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    app = await service.approve_application(db, app_id)
+    return {"success": True, "data": _serialize_app(app)}
+
+
+@router.post("/applications/{app_id}/reject")
+async def reject_application(
+    app_id: uuid.UUID,
+    data: RejectRequest,
+    _: User = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    app = await service.reject_application(db, app_id, data.reason)
+    return {"success": True, "data": _serialize_app(app)}

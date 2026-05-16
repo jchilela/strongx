@@ -83,6 +83,23 @@ async def create_message_record(
     return msg
 
 
+async def _get_channel_cost(db: AsyncSession, user_id: uuid.UUID, channel: str) -> Decimal:
+    from sqlalchemy import select
+    from app.modules.users.models import User
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if user:
+        custom = getattr(user, f"{channel}_cost", None)
+        if custom is not None:
+            return Decimal(str(custom))
+    defaults = {
+        "sms": settings.SMS_COST_PER_UNIT,
+        "email": settings.EMAIL_COST_PER_UNIT,
+        "whatsapp": settings.WHATSAPP_COST_PER_UNIT,
+    }
+    return Decimal(str(defaults.get(channel, settings.SMS_COST_PER_UNIT)))
+
+
 async def send_sms(
     db: AsyncSession,
     user_id: uuid.UUID,
@@ -92,7 +109,11 @@ async def send_sms(
 ) -> Message:
     await check_sms_rate_limit(user_id)
 
-    cost = Decimal(str(settings.SMS_COST_PER_UNIT))
+    if application_id:
+        from app.modules.applications.service import check_application_approved
+        await check_application_approved(db, application_id)
+
+    cost = await _get_channel_cost(db, user_id, "sms")
     await deduct_wallet_cost(
         db, user_id, cost, f"SMS to {to}"
     )

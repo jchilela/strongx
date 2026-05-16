@@ -1,7 +1,9 @@
 import uuid
 from datetime import datetime
+from decimal import Decimal
+from typing import Optional
 
-from sqlalchemy import Boolean, DateTime, String, func
+from sqlalchemy import Boolean, DateTime, Numeric, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -22,6 +24,9 @@ class User(Base):
     email_verified: Mapped[bool] = mapped_column(Boolean, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
+    sms_cost: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 4), nullable=True)
+    email_cost: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 4), nullable=True)
+    whatsapp_cost: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 4), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

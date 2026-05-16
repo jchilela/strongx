@@ -54,6 +54,7 @@ def create_app() -> FastAPI:
     register_exception_handlers(app)
 
     # Routers
+    from app.modules.admin.router import router as admin_router
     from app.modules.applications.router import router as applications_router
     from app.modules.auth.router import router as auth_router
     from app.modules.developer.router import router as developer_router
@@ -69,6 +70,7 @@ def create_app() -> FastAPI:
     app.include_router(auth_router)
     app.include_router(users_router)
     app.include_router(applications_router)
+    app.include_router(admin_router)
     app.include_router(sms_router)
     app.include_router(email_router)
     app.include_router(whatsapp_router)

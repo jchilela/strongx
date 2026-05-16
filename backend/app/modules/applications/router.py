@@ -20,6 +20,8 @@ def _serialize_app(app) -> dict:
         "description": app.description,
         "messageCount": 0,
         "isActive": app.is_active,
+        "status": app.status,
+        "rejectedReason": app.rejected_reason,
         "createdAt": app.created_at.isoformat(),
         "updatedAt": app.created_at.isoformat(),
     }

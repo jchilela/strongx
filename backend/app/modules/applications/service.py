@@ -31,6 +31,7 @@ async def create_application(
         name=data.name,
         slug=slug,
         description=data.description,
+        status="pending",
     )
     db.add(app)
     await db.flush()
@@ -80,3 +81,11 @@ async def delete_application(
     app = await get_application(db, app_id, user_id)
     app.is_active = False
     await db.flush()
+
+
+async def check_application_approved(db: AsyncSession, application_id: uuid.UUID) -> None:
+    result = await db.execute(select(Application).where(Application.id == application_id))
+    app = result.scalar_one_or_none()
+    if not app or app.status != "approved":
+        from app.core.exceptions import ValidationError
+        raise ValidationError("Application is not approved. Awaiting admin approval before sending messages.")
