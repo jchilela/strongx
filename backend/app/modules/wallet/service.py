@@ -76,6 +76,7 @@ async def initiate_topup(
         "merchantTransactionId": merchant_transaction_id,
         "amount": float(amount),
         "currency": "AOA",
+        "description": "StrongX Wallet Top-up",
         "paymentMethod": payment_method_id,
         "customer": {
             "name": name,

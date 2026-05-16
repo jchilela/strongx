@@ -39,8 +39,8 @@ async def topup(
         user_id=current_user.id,
         amount=data.amount,
         method=data.method,
-        phone=data.phone,
-        name=data.name,
+        phone=data.phone or current_user.phone,
+        name=current_user.full_name,
         email=data.email,
     )
     return {

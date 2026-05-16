@@ -15,10 +15,10 @@ class WalletResponse(BaseModel):
 
 
 class TopUpRequest(BaseModel):
+    model_config = {"populate_by_name": True}
     amount: Decimal = Field(..., gt=0, description="Amount in AOA")
-    method: str = Field(..., pattern="^(gpo|reference)$")
-    phone: str = Field(..., description="Customer phone for payment")
-    name: str = Field(..., description="Customer name")
+    method: str = Field("reference", pattern="^(gpo|reference)$", alias="paymentMethod")
+    phone: Optional[str] = None
     email: Optional[str] = None
 
 
