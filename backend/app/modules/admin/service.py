@@ -1,11 +1,13 @@
 import uuid
 from decimal import Decimal
+from datetime import datetime, timezone
 from typing import Optional
-from sqlalchemy import select, func
+from sqlalchemy import select, func, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.modules.users.models import User
 from app.modules.applications.models import Application
 from app.modules.auth.models import ApiKey
+from app.modules.wallet.models import Wallet, WalletTransaction
 from app.core.exceptions import NotFoundError
 
 
@@ -22,23 +24,17 @@ async def get_user(db: AsyncSession, user_id: uuid.UUID) -> User:
     return user
 
 
-async def update_user(
-    db: AsyncSession,
-    user_id: uuid.UUID,
-    is_active: Optional[bool] = None,
-    sms_cost: Optional[Decimal] = None,
-    email_cost: Optional[Decimal] = None,
-    whatsapp_cost: Optional[Decimal] = None,
-) -> User:
+async def update_user(db: AsyncSession, user_id: uuid.UUID, updates: dict) -> User:
     user = await get_user(db, user_id)
-    if is_active is not None:
-        user.is_active = is_active
-    if sms_cost is not None:
-        user.sms_cost = sms_cost
-    if email_cost is not None:
-        user.email_cost = email_cost
-    if whatsapp_cost is not None:
-        user.whatsapp_cost = whatsapp_cost
+    field_map = {
+        "isActive": "is_active",
+        "smsCost": "sms_cost",
+        "emailCost": "email_cost",
+        "whatsappCost": "whatsapp_cost",
+    }
+    for key, db_field in field_map.items():
+        if key in updates:
+            setattr(user, db_field, updates[key])
     await db.flush()
     return user
 
@@ -88,3 +84,89 @@ async def reject_application(db: AsyncSession, app_id: uuid.UUID, reason: str) -
     app.rejected_reason = reason
     await db.flush()
     return app
+
+
+async def admin_add_wallet_funds(
+    db: AsyncSession, user_id: uuid.UUID, amount: Decimal, description: str
+) -> dict:
+    result = await db.execute(
+        select(Wallet).where(Wallet.user_id == user_id).with_for_update()
+    )
+    wallet = result.scalar_one_or_none()
+    if not wallet:
+        raise NotFoundError("Wallet not found for user")
+    wallet.balance += amount
+    txn = WalletTransaction(
+        user_id=user_id,
+        type="credit",
+        amount=amount,
+        description=description or "Admin credit",
+        status="completed",
+    )
+    db.add(txn)
+    await db.flush()
+    return {"balance": float(wallet.balance), "added": float(amount)}
+
+
+async def get_earnings_stats(db: AsyncSession) -> dict:
+    # Daily — last 30 days
+    daily_q = await db.execute(text("""
+        SELECT DATE(created_at AT TIME ZONE 'UTC') as day, COALESCE(SUM(amount), 0) as total
+        FROM wallet_transactions
+        WHERE type = 'debit' AND status = 'completed'
+          AND created_at >= NOW() - INTERVAL '30 days'
+        GROUP BY day ORDER BY day
+    """))
+    daily = [{"date": str(r.day), "total": float(r.total)} for r in daily_q]
+
+    # Monthly — last 12 months
+    monthly_q = await db.execute(text("""
+        SELECT TO_CHAR(DATE_TRUNC('month', created_at AT TIME ZONE 'UTC'), 'YYYY-MM') as month,
+               COALESCE(SUM(amount), 0) as total
+        FROM wallet_transactions
+        WHERE type = 'debit' AND status = 'completed'
+          AND created_at >= NOW() - INTERVAL '12 months'
+        GROUP BY month ORDER BY month
+    """))
+    monthly = [{"month": r.month, "total": float(r.total)} for r in monthly_q]
+
+    # Yearly — all time
+    yearly_q = await db.execute(text("""
+        SELECT TO_CHAR(DATE_TRUNC('year', created_at AT TIME ZONE 'UTC'), 'YYYY') as year,
+               COALESCE(SUM(amount), 0) as total
+        FROM wallet_transactions
+        WHERE type = 'debit' AND status = 'completed'
+        GROUP BY year ORDER BY year
+    """))
+    yearly = [{"year": r.year, "total": float(r.total)} for r in yearly_q]
+
+    # Top users
+    top_users_q = await db.execute(text("""
+        SELECT u.id::text, u.full_name as name, u.email, COALESCE(SUM(wt.amount), 0) as total
+        FROM wallet_transactions wt
+        JOIN users u ON u.id = wt.user_id
+        WHERE wt.type = 'debit' AND wt.status = 'completed'
+        GROUP BY u.id, u.full_name, u.email
+        ORDER BY total DESC
+        LIMIT 10
+    """))
+    top_users = [
+        {"userId": r.id, "name": r.name, "email": r.email, "total": float(r.total)}
+        for r in top_users_q
+    ]
+
+    # Total all time
+    total_q = await db.execute(text("""
+        SELECT COALESCE(SUM(amount), 0) as total
+        FROM wallet_transactions
+        WHERE type = 'debit' AND status = 'completed'
+    """))
+    total_all_time = float(total_q.scalar_one())
+
+    return {
+        "daily": daily,
+        "monthly": monthly,
+        "yearly": yearly,
+        "topUsers": top_users,
+        "totalAllTime": total_all_time,
+    }

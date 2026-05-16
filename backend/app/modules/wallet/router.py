@@ -3,6 +3,7 @@ import math
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.modules.auth.dependencies import get_current_active_user
 from app.modules.users.models import User
@@ -18,11 +19,17 @@ async def get_balance(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     wallet = await service.get_wallet(db, current_user.id)
+    sms_cost = float(current_user.sms_cost) if current_user.sms_cost is not None else float(settings.SMS_COST_PER_UNIT)
+    email_cost = float(current_user.email_cost) if current_user.email_cost is not None else float(settings.EMAIL_COST_PER_UNIT)
+    whatsapp_cost = float(current_user.whatsapp_cost) if current_user.whatsapp_cost is not None else float(settings.WHATSAPP_COST_PER_UNIT)
     return {
         "success": True,
         "data": {
             "balance": float(wallet.balance),
             "currency": wallet.currency,
+            "smsCost": sms_cost,
+            "emailCost": email_cost,
+            "whatsappCost": whatsapp_cost,
             "updatedAt": wallet.updated_at.isoformat(),
         },
     }

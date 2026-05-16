@@ -205,4 +205,8 @@ export const adminApi = {
     api.post<ApiResponse<import('@/types/admin').AdminApplication>>(`/admin/applications/${appId}/approve`),
   rejectApplication: (appId: string, reason: string) =>
     api.post<ApiResponse<import('@/types/admin').AdminApplication>>(`/admin/applications/${appId}/reject`, { reason }),
+  addWalletFunds: (userId: string, amount: number, description?: string) =>
+    api.post<ApiResponse<{ balance: number; added: number }>>(`/admin/users/${userId}/wallet/add`, { amount, description }),
+  getEarningsStats: () =>
+    api.get<ApiResponse<import('@/types/admin').EarningsStats>>('/admin/stats/earnings'),
 };

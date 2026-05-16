@@ -66,11 +66,3 @@ async def update_application(
     app = await service.update_application(db, app_id, current_user.id, data)
     return {"success": True, "data": _serialize_app(app)}
 
-
-@router.delete("/{app_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_application(
-    app_id: uuid.UUID,
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db),
-) -> None:
-    await service.delete_application(db, app_id, current_user.id)

@@ -15,6 +15,7 @@ import {
   X,
   Zap,
   ShieldCheck,
+  TrendingUp,
 } from 'lucide-react';
 import { cn, getInitials } from '@/lib/utils';
 import { clearAuth, getStoredUser } from '@/lib/auth';
@@ -130,10 +131,20 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                   <Link
                     href="/admin/users"
                     onClick={onClose}
-                    className={cn('sidebar-item', pathname.startsWith('/admin') && 'active')}
+                    className={cn('sidebar-item', (pathname.startsWith('/admin/users') || pathname.startsWith('/admin/applications')) && 'active')}
                   >
                     <ShieldCheck className="h-4 w-4 flex-shrink-0" />
-                    <span>Admin Panel</span>
+                    <span>Users & Apps</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/admin/earnings"
+                    onClick={onClose}
+                    className={cn('sidebar-item', pathname.startsWith('/admin/earnings') && 'active')}
+                  >
+                    <TrendingUp className="h-4 w-4 flex-shrink-0" />
+                    <span>Earnings</span>
                   </Link>
                 </li>
               </>

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Users, Search, ChevronRight, Key,
-  DollarSign, Shield, ShieldOff, RefreshCw,
+  DollarSign, Shield, ShieldOff, RefreshCw, PlusCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -108,6 +108,72 @@ function PricingModal({
   );
 }
 
+function AddFundsModal({
+  user,
+  open,
+  onOpenChange,
+}: {
+  user: AdminUser;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const queryClient = useQueryClient();
+  const [amount, setAmount] = useState('');
+  const [description, setDescription] = useState('Admin credit');
+
+  const { mutate: addFunds, isPending } = useMutation({
+    mutationFn: () => adminApi.addWalletFunds(user.id, parseFloat(amount), description),
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      toast.success(`Added AOA ${amount} — new balance: AOA ${res.data.data.balance.toFixed(2)}`);
+      setAmount('');
+      onOpenChange(false);
+    },
+    onError: () => toast.error('Failed to add funds'),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Add Wallet Funds — {user.name}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="add-amount">Amount (AOA)</Label>
+            <Input
+              id="add-amount"
+              type="number"
+              min="1"
+              step="1"
+              placeholder="e.g. 5000"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="add-desc">Description</Label>
+            <Input
+              id="add-desc"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button
+            disabled={!amount || parseFloat(amount) <= 0 || isPending}
+            onClick={() => addFunds()}
+          >
+            {isPending ? 'Adding...' : 'Add Funds'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function ApiKeysModal({
   user,
   open,
@@ -180,6 +246,7 @@ export function AdminUsersList() {
   const [search, setSearch] = useState('');
   const [pricingUser, setPricingUser] = useState<AdminUser | null>(null);
   const [keysUser, setKeysUser] = useState<AdminUser | null>(null);
+  const [fundsUser, setFundsUser] = useState<AdminUser | null>(null);
 
   const { data: users, isLoading } = useQuery({
     queryKey: ['admin-users'],
@@ -293,6 +360,14 @@ export function AdminUsersList() {
                         <Button
                           variant="ghost"
                           size="sm"
+                          title="Add wallet funds"
+                          onClick={() => setFundsUser(user)}
+                        >
+                          <PlusCircle className="h-4 w-4 text-green-500" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           title="Edit pricing"
                           onClick={() => setPricingUser(user)}
                         >
@@ -328,6 +403,13 @@ export function AdminUsersList() {
           user={keysUser}
           open={!!keysUser}
           onOpenChange={(open) => { if (!open) setKeysUser(null); }}
+        />
+      )}
+      {fundsUser && (
+        <AddFundsModal
+          user={fundsUser}
+          open={!!fundsUser}
+          onOpenChange={(open) => { if (!open) setFundsUser(null); }}
         />
       )}
     </div>

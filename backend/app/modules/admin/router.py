@@ -70,6 +70,11 @@ class ToggleKeyRequest(BaseModel):
     isActive: bool
 
 
+class AddFundsRequest(BaseModel):
+    amount: Decimal
+    description: str = "Admin credit"
+
+
 @router.get("/users")
 async def list_users(
     _: User = Depends(get_current_admin_user),
@@ -96,13 +101,9 @@ async def update_user(
     _: User = Depends(get_current_admin_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    user = await service.update_user(
-        db, user_id,
-        is_active=data.isActive,
-        sms_cost=data.smsCost,
-        email_cost=data.emailCost,
-        whatsapp_cost=data.whatsappCost,
-    )
+    updates = data.model_dump(exclude_unset=True)
+    user = await service.update_user(db, user_id, updates)
+    await db.commit()
     return {"success": True, "data": _serialize_user(user)}
 
 
@@ -124,6 +125,7 @@ async def toggle_api_key(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     key = await service.toggle_api_key(db, key_id, data.isActive)
+    await db.commit()
     return {"success": True, "data": _serialize_key(key)}
 
 
@@ -144,6 +146,7 @@ async def approve_application(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     app = await service.approve_application(db, app_id)
+    await db.commit()
     return {"success": True, "data": _serialize_app(app)}
 
 
@@ -155,4 +158,26 @@ async def reject_application(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     app = await service.reject_application(db, app_id, data.reason)
+    await db.commit()
     return {"success": True, "data": _serialize_app(app)}
+
+
+@router.post("/users/{user_id}/wallet/add")
+async def add_wallet_funds(
+    user_id: uuid.UUID,
+    data: AddFundsRequest,
+    _: User = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    result = await service.admin_add_wallet_funds(db, user_id, data.amount, data.description)
+    await db.commit()
+    return {"success": True, "data": result}
+
+
+@router.get("/stats/earnings")
+async def get_earnings_stats(
+    _: User = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    stats = await service.get_earnings_stats(db)
+    return {"success": True, "data": stats}

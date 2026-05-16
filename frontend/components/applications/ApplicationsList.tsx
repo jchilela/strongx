@@ -2,19 +2,8 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, AppWindow, Pencil, Trash2, MessageSquare, Calendar } from 'lucide-react';
+import { Plus, AppWindow, Pencil, MessageSquare, Calendar, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
 import { ApplicationModal } from './ApplicationModal';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { PageLoader } from '@/components/shared/LoadingSpinner';
@@ -37,17 +26,6 @@ export function ApplicationsList() {
     },
   });
 
-  const { mutate: deleteApp, isPending: isDeleting } = useMutation({
-    mutationFn: (id: string) => applicationsApi.deleteApplication(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['applications'] });
-      toast.success('Application deleted');
-    },
-    onError: () => {
-      toast.error('Failed to delete application');
-    },
-  });
-
   const handleEdit = (app: Application) => {
     setEditingApp(app);
     setModalOpen(true);
@@ -56,6 +34,11 @@ export function ApplicationsList() {
   const handleCreate = () => {
     setEditingApp(null);
     setModalOpen(true);
+  };
+
+  const copyId = (id: string) => {
+    navigator.clipboard.writeText(id);
+    toast.success('Application ID copied');
   };
 
   if (isLoading) return <PageLoader />;
@@ -147,6 +130,20 @@ export function ApplicationsList() {
                 </div>
               </div>
 
+              {/* App ID */}
+              <div className="flex items-center gap-1.5 mb-3 px-2 py-1.5 rounded-md bg-gray-50 border border-gray-100">
+                <p className="text-xs text-gray-400 font-mono flex-1 truncate" title={app.id}>
+                  ID: {app.id}
+                </p>
+                <button
+                  onClick={() => copyId(app.id)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
+                  title="Copy application ID"
+                >
+                  <Copy className="h-3 w-3" />
+                </button>
+              </div>
+
               {/* Actions */}
               <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
                 <Button
@@ -158,37 +155,6 @@ export function ApplicationsList() {
                   <Pencil className="h-3.5 w-3.5 mr-1.5" />
                   Edit
                 </Button>
-
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="flex-1 text-red-500 hover:text-red-700 hover:bg-red-50"
-                    >
-                      <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-                      Delete
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Delete Application</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Are you sure you want to delete &quot;{app.name}&quot;? This action cannot be
-                        undone. All API keys associated with this application will also be revoked.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={() => deleteApp(app.id)}
-                        disabled={isDeleting}
-                      >
-                        Delete Application
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
               </div>
             </div>
           ))}

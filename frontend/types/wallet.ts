@@ -5,6 +5,9 @@ export type PaymentMethod = 'gpo' | 'reference';
 export interface WalletBalance {
   balance: number;
   currency: string;
+  smsCost: number;
+  emailCost: number;
+  whatsappCost: number;
   updatedAt: string;
 }
 
