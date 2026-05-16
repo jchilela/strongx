@@ -72,12 +72,16 @@ async def initiate_topup(
         else settings.APPYPAY_PAYMENT_METHOD_REFERENCE
     )
 
+    callback_url = (
+        f"{settings.API_URL}/webhooks/appypay?token={settings.APPYPAY_WEBHOOK_TOKEN}"
+    )
     payload = {
         "merchantTransactionId": merchant_transaction_id,
         "amount": float(amount),
         "currency": "AOA",
         "description": "StrongX Wallet Top-up",
         "paymentMethod": payment_method_id,
+        "callbackUrl": callback_url,
         "customer": {
             "name": name,
             "phone": phone,
