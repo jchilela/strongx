@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     # TelcoSMS
     TELCOSMS_URL: str = "https://telcosms.co.ao/send_message"
     TELCOSMS_API_KEY: str = ""
+    TELCOSMS_FROM: str = "StrongX"
 
     # Twilio
     TWILIO_ACCOUNT_SID: str = ""
