@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { Plus, AppWindow, Pencil, MessageSquare, Calendar, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ApplicationModal } from './ApplicationModal';
@@ -12,11 +12,12 @@ import type { Application } from '@/types/api';
 import { formatDate } from '@/lib/utils';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
+import { useLang } from '@/lib/lang';
 
 export function ApplicationsList() {
-  const queryClient = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingApp, setEditingApp] = useState<Application | null>(null);
+  const { t } = useLang();
 
   const { data: applications, isLoading } = useQuery({
     queryKey: ['applications'],
@@ -38,7 +39,7 @@ export function ApplicationsList() {
 
   const copyId = (id: string) => {
     navigator.clipboard.writeText(id);
-    toast.success('Application ID copied');
+    toast.success(t.applications.idCopied);
   };
 
   if (isLoading) return <PageLoader />;
@@ -49,12 +50,12 @@ export function ApplicationsList() {
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm text-gray-500">
-            {applications?.length || 0} application{applications?.length !== 1 ? 's' : ''}
+            {applications?.length || 0} {applications?.length !== 1 ? t.applications.title.toLowerCase() : t.applications.title.toLowerCase().replace(/s$/, '')}
           </p>
         </div>
         <Button onClick={handleCreate}>
           <Plus className="h-4 w-4 mr-2" />
-          New Application
+          {t.applications.newApplication}
         </Button>
       </div>
 
@@ -63,12 +64,12 @@ export function ApplicationsList() {
         <div className="bg-white rounded-xl border border-gray-200">
           <EmptyState
             icon={AppWindow}
-            title="No applications yet"
-            description="Create your first application to start sending messages and generating API keys."
+            title={t.applications.noApps}
+            description={t.applications.noAppsDesc}
             action={
               <Button onClick={handleCreate}>
                 <Plus className="h-4 w-4 mr-2" />
-                Create Application
+                {t.applications.createApplication}
               </Button>
             }
           />
@@ -93,24 +94,24 @@ export function ApplicationsList() {
                 </div>
                 <div className="flex flex-col items-end gap-1">
                   <Badge variant={app.isActive ? 'success' : 'secondary'}>
-                    {app.isActive ? 'Active' : 'Inactive'}
+                    {app.isActive ? t.applications.active : t.applications.inactive}
                   </Badge>
                   {app.status === 'pending' && (
-                    <Badge variant="warning">Pending approval</Badge>
+                    <Badge variant="warning">{t.applications.pendingApproval}</Badge>
                   )}
                   {app.status === 'approved' && (
-                    <Badge variant="info">Approved</Badge>
+                    <Badge variant="info">{t.applications.approved}</Badge>
                   )}
                   {app.status === 'rejected' && (
-                    <Badge variant="destructive">Rejected</Badge>
+                    <Badge variant="destructive">{t.applications.rejected}</Badge>
                   )}
                 </div>
               </div>
               {app.status === 'rejected' && app.rejectedReason && (
-                <p className="text-xs text-red-500 mb-2">Reason: {app.rejectedReason}</p>
+                <p className="text-xs text-red-500 mb-2">{t.applications.reason} {app.rejectedReason}</p>
               )}
               {app.status === 'pending' && (
-                <p className="text-xs text-amber-600 mb-2">Awaiting admin approval to send messages.</p>
+                <p className="text-xs text-amber-600 mb-2">{t.applications.awaitingApproval}</p>
               )}
 
               {/* Description */}
@@ -122,7 +123,7 @@ export function ApplicationsList() {
               <div className="flex items-center gap-4 mb-4 text-xs text-gray-500">
                 <div className="flex items-center gap-1">
                   <MessageSquare className="h-3.5 w-3.5" />
-                  <span>{app.messageCount.toLocaleString()} messages</span>
+                  <span>{app.messageCount.toLocaleString()} {t.applications.messages}</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <Calendar className="h-3.5 w-3.5" />
@@ -138,7 +139,7 @@ export function ApplicationsList() {
                 <button
                   onClick={() => copyId(app.id)}
                   className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
-                  title="Copy application ID"
+                  title={t.applications.copyId}
                 >
                   <Copy className="h-3 w-3" />
                 </button>
@@ -153,7 +154,7 @@ export function ApplicationsList() {
                   onClick={() => handleEdit(app)}
                 >
                   <Pencil className="h-3.5 w-3.5 mr-1.5" />
-                  Edit
+                  {t.applications.edit}
                 </Button>
               </div>
             </div>

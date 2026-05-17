@@ -6,10 +6,12 @@ import { Button } from '@/components/ui/button';
 import { useWalletBalance } from '@/hooks/useWallet';
 import { formatCurrency } from '@/lib/utils';
 import { TopUpModal } from './TopUpModal';
+import { useLang } from '@/lib/lang';
 
 export function BalanceCard() {
   const [topUpOpen, setTopUpOpen] = useState(false);
   const { data: balance, isLoading, refetch } = useWalletBalance();
+  const { t } = useLang();
 
   const smsCount = balance ? Math.floor(balance.balance / balance.smsCost) : 0;
   const emailCount = balance ? Math.floor(balance.balance / balance.emailCost) : 0;
@@ -31,9 +33,9 @@ export function BalanceCard() {
                 <Wallet className="h-5 w-5 text-white" />
               </div>
               <div>
-                <p className="text-sm text-white/70">Available Messages</p>
+                <p className="text-sm text-white/70">{t.wallet.availableMessages}</p>
                 <p className="text-xs text-white/50">
-                  Balance: {balance ? formatCurrency(balance.balance) : 'AOA 0.00'}
+                  {t.wallet.balance}: {balance ? formatCurrency(balance.balance) : 'AOA 0.00'}
                 </p>
               </div>
             </div>
@@ -82,10 +84,10 @@ export function BalanceCard() {
               className="bg-white text-[#fb923c] hover:bg-white/90 font-semibold"
             >
               <ArrowUpRight className="h-4 w-4 mr-2" />
-              Top Up
+              {t.wallet.topUp}
             </Button>
             <p className="text-xs text-white/60">
-              Funds are used automatically when sending messages
+              {t.wallet.fundsUsed}
             </p>
           </div>
         </div>

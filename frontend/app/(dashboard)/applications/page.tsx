@@ -1,14 +1,13 @@
-import type { Metadata } from 'next';
+'use client';
+
 import { DashboardShell } from '@/components/layout/DashboardShell';
 import { ApplicationsList } from '@/components/applications/ApplicationsList';
-
-export const metadata: Metadata = {
-  title: 'Applications',
-};
+import { useLang } from '@/lib/lang';
 
 export default function ApplicationsPage() {
+  const { t } = useLang();
   return (
-    <DashboardShell title="Applications">
+    <DashboardShell title={t.applications.title}>
       <ApplicationsList />
     </DashboardShell>
   );

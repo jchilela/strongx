@@ -1,15 +1,14 @@
-import type { Metadata } from 'next';
+'use client';
+
 import { DashboardShell } from '@/components/layout/DashboardShell';
 import { BalanceCard } from '@/components/wallet/BalanceCard';
 import { TransactionHistory } from '@/components/wallet/TransactionHistory';
-
-export const metadata: Metadata = {
-  title: 'Wallet',
-};
+import { useLang } from '@/lib/lang';
 
 export default function WalletPage() {
+  const { t } = useLang();
   return (
-    <DashboardShell title="Wallet">
+    <DashboardShell title={t.wallet.title}>
       <div className="space-y-6">
         <div className="max-w-md">
           <BalanceCard />

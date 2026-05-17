@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import { Toaster } from 'sonner';
 import { QueryProvider } from '@/components/shared/QueryProvider';
+import { LangProvider } from '@/lib/lang';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -25,6 +26,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
         <QueryProvider>
+          <LangProvider>
           {children}
           <Toaster
             position="top-right"
@@ -34,6 +36,7 @@ export default function RootLayout({
               duration: 4000,
             }}
           />
+          </LangProvider>
         </QueryProvider>
       </body>
     </html>

@@ -4,6 +4,7 @@ import { Menu, Bell, MessageSquare, Mail, MessageCircle } from 'lucide-react';
 import { useWalletBalance } from '@/hooks/useWallet';
 import { useSocket } from '@/hooks/useSocket';
 import { cn } from '@/lib/utils';
+import { useLang, LangToggle } from '@/lib/lang';
 
 interface HeaderProps {
   title: string;
@@ -13,6 +14,7 @@ interface HeaderProps {
 export function Header({ title, onMenuClick }: HeaderProps) {
   const { data: balance } = useWalletBalance();
   const { isConnected } = useSocket();
+  const { t } = useLang();
 
   const smsCount = balance ? Math.floor(balance.balance / balance.smsCost) : 0;
   const emailCount = balance ? Math.floor(balance.balance / balance.emailCost) : 0;
@@ -44,12 +46,15 @@ export function Header({ title, onMenuClick }: HeaderProps) {
               <Mail className="h-3.5 w-3.5" />
               <span>{emailCount.toLocaleString()}</span>
             </div>
-            <div className="flex items-center gap-1 bg-green-50 text-green-700 px-2.5 py-1.5 rounded-full text-xs font-semibold" title="WhatsApp messages available">
+            <div className="flex items-center gap-1 bg-green-50 text-green-700 px-2.5 py-1.5 rounded-full text-xs font-semibold" title="WhatsApp available">
               <MessageCircle className="h-3.5 w-3.5" />
               <span>{waCount.toLocaleString()}</span>
             </div>
           </div>
         )}
+
+        {/* Language toggle */}
+        <LangToggle />
 
         {/* Notification bell */}
         <button className="relative p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
@@ -68,7 +73,7 @@ export function Header({ title, onMenuClick }: HeaderProps) {
             )}
           />
           <span className="hidden sm:block text-xs text-gray-500">
-            {isConnected ? 'Live' : 'Offline'}
+            {isConnected ? t.header.live : t.header.offline}
           </span>
         </div>
       </div>

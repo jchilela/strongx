@@ -24,10 +24,12 @@ import {
   formatCurrency,
 } from '@/lib/utils';
 import { useEffect, useState } from 'react';
+import { useLang } from '@/lib/lang';
 
 export function SendSmsForm() {
   const { mutate: sendSms, isPending } = useSendSms();
   const [charCount, setCharCount] = useState(0);
+  const { t } = useLang();
 
   const { data: applications } = useQuery({
     queryKey: ['applications'],
@@ -72,15 +74,15 @@ export function SendSmsForm() {
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-100">
           <MessageSquare className="h-4 w-4 text-[#6366f1]" />
         </div>
-        <h2 className="text-base font-semibold text-gray-900">Send SMS</h2>
+        <h2 className="text-base font-semibold text-gray-900">{t.smsForm.title}</h2>
       </div>
 
       {/* Application */}
       <div className="space-y-1.5">
-        <Label>Application</Label>
+        <Label>{t.smsForm.application}</Label>
         <Select onValueChange={(val) => setValue('applicationId', val)}>
           <SelectTrigger error={errors.applicationId?.message}>
-            <SelectValue placeholder="Select application" />
+            <SelectValue placeholder={t.smsForm.selectApplication} />
           </SelectTrigger>
           <SelectContent>
             {applications?.map((app) => (
@@ -90,7 +92,7 @@ export function SendSmsForm() {
             ))}
             {(!applications || applications.length === 0) && (
               <SelectItem value="none" disabled>
-                No applications found
+                {t.smsForm.noApplications}
               </SelectItem>
             )}
           </SelectContent>
@@ -100,7 +102,7 @@ export function SendSmsForm() {
 
       {/* To */}
       <div className="space-y-1.5">
-        <Label htmlFor="to">To (Phone Number)</Label>
+        <Label htmlFor="to">{t.smsForm.to}</Label>
         <Input
           id="to"
           type="tel"
@@ -113,9 +115,9 @@ export function SendSmsForm() {
       {/* Message */}
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
-          <Label htmlFor="message">Message</Label>
+          <Label htmlFor="message">{t.smsForm.message}</Label>
           <span className="text-xs text-gray-400">
-            {charCount}/160 chars ({smsSegments} SMS)
+            {charCount}/160 {t.smsForm.chars} ({smsSegments} {t.smsForm.sms})
           </span>
         </div>
         <Textarea
@@ -139,17 +141,17 @@ export function SendSmsForm() {
         <div className="flex items-center gap-2 bg-indigo-50 text-indigo-700 rounded-lg px-4 py-3 text-sm">
           <Info className="h-4 w-4 flex-shrink-0" />
           <span>
-            This will cost{' '}
+            {t.smsForm.willCost}{' '}
             <span className="font-bold">{formatCurrency(smsCost)}</span> — {smsSegments}{' '}
-            SMS segment{smsSegments > 1 ? 's' : ''} at{' '}
-            <span className="font-semibold">AOA 2.50</span> each
+            {smsSegments > 1 ? t.smsForm.segments : t.smsForm.segment} {t.smsForm.at}{' '}
+            <span className="font-semibold">AOA 2.50</span> {t.smsForm.each}
           </span>
         </div>
       )}
 
       <Button type="submit" className="w-full" loading={isPending}>
         <Send className="h-4 w-4 mr-2" />
-        Send SMS
+        {t.smsForm.sendButton}
       </Button>
     </form>
   );

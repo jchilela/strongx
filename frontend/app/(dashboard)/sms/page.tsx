@@ -1,15 +1,14 @@
-import type { Metadata } from 'next';
+'use client';
+
 import { DashboardShell } from '@/components/layout/DashboardShell';
 import { SendSmsForm } from '@/components/sms/SendSmsForm';
 import { MessagesTable } from '@/components/sms/MessagesTable';
-
-export const metadata: Metadata = {
-  title: 'SMS',
-};
+import { useLang } from '@/lib/lang';
 
 export default function SmsPage() {
+  const { t } = useLang();
   return (
-    <DashboardShell title="SMS">
+    <DashboardShell title={t.nav.sms}>
       <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
         <div className="xl:col-span-2">
           <SendSmsForm />

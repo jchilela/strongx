@@ -24,17 +24,7 @@ import { disconnectSocket } from '@/lib/socket';
 import { toast } from 'sonner';
 import { useState, useEffect } from 'react';
 import type { User } from '@/types/auth';
-
-const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/sms', label: 'SMS', icon: MessageSquare },
-  { href: '/email', label: 'Email', icon: Mail },
-  { href: '/whatsapp', label: 'WhatsApp', icon: MessageCircle },
-  { href: '/applications', label: 'Applications', icon: AppWindow },
-  { href: '/wallet', label: 'Wallet', icon: Wallet },
-  { href: '/developer', label: 'Developer', icon: Code2 },
-  { href: '/settings', label: 'Settings', icon: Settings },
-];
+import { useLang } from '@/lib/lang';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -46,6 +36,18 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [loggingOut, setLoggingOut] = useState(false);
+  const { t } = useLang();
+
+  const navItems = [
+    { href: '/dashboard', label: t.nav.dashboard, icon: LayoutDashboard },
+    { href: '/sms', label: t.nav.sms, icon: MessageSquare },
+    { href: '/email', label: t.nav.email, icon: Mail },
+    { href: '/whatsapp', label: t.nav.whatsapp, icon: MessageCircle },
+    { href: '/applications', label: t.nav.applications, icon: AppWindow },
+    { href: '/wallet', label: t.nav.wallet, icon: Wallet },
+    { href: '/developer', label: t.nav.developer, icon: Code2 },
+    { href: '/settings', label: t.nav.settings, icon: Settings },
+  ];
 
   useEffect(() => {
     setUser(getStoredUser());
@@ -120,7 +122,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             {user?.isAdmin && (
               <>
                 <li className="pt-3">
-                  <p className="px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Admin</p>
+                  <p className="px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">{t.nav.admin}</p>
                 </li>
                 <li>
                   <Link
@@ -129,7 +131,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                     className={cn('sidebar-item', (pathname.startsWith('/admin/users') || pathname.startsWith('/admin/applications')) && 'active')}
                   >
                     <ShieldCheck className="h-4 w-4 flex-shrink-0" />
-                    <span>Users & Apps</span>
+                    <span>{t.nav.usersApps}</span>
                   </Link>
                 </li>
                 <li>
@@ -139,7 +141,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                     className={cn('sidebar-item', pathname.startsWith('/admin/earnings') && 'active')}
                   >
                     <TrendingUp className="h-4 w-4 flex-shrink-0" />
-                    <span>Earnings</span>
+                    <span>{t.nav.earnings}</span>
                   </Link>
                 </li>
               </>
@@ -168,7 +170,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             className="sidebar-item w-full mt-1 text-red-400 hover:text-red-300 hover:bg-red-900/20"
           >
             <LogOut className="h-4 w-4 flex-shrink-0" />
-            <span>{loggingOut ? 'Logging out...' : 'Logout'}</span>
+            <span>{loggingOut ? t.nav.loggingOut : t.nav.logout}</span>
           </button>
         </div>
       </aside>

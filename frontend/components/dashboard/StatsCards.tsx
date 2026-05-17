@@ -5,6 +5,7 @@ import { useTodayStats } from '@/hooks/useMessages';
 import { useWalletBalance } from '@/hooks/useWallet';
 import { formatCurrency } from '@/lib/utils';
 import { cn } from '@/lib/utils';
+import { useLang } from '@/lib/lang';
 
 interface StatCardProps {
   title: string;
@@ -41,31 +42,32 @@ function StatCard({ title, value, icon, iconBg, trend, loading }: StatCardProps)
 export function StatsCards() {
   const { data: stats, isLoading: statsLoading } = useTodayStats();
   const { data: balance, isLoading: balanceLoading } = useWalletBalance();
+  const { t } = useLang();
 
   const cards = [
     {
-      title: 'SMS Sent Today',
+      title: t.stats.smsSentToday,
       value: stats?.smsSentToday ?? 0,
       icon: <MessageSquare className="h-6 w-6 text-white" />,
       iconBg: 'bg-[#6366f1]',
       loading: statsLoading,
     },
     {
-      title: 'Emails Sent Today',
+      title: t.stats.emailsSentToday,
       value: stats?.emailsSentToday ?? 0,
       icon: <Mail className="h-6 w-6 text-white" />,
       iconBg: 'bg-[#fb923c]',
       loading: statsLoading,
     },
     {
-      title: 'WhatsApp Today',
+      title: t.stats.whatsappToday,
       value: stats?.whatsappSentToday ?? 0,
       icon: <MessageCircle className="h-6 w-6 text-white" />,
       iconBg: 'bg-green-500',
       loading: statsLoading,
     },
     {
-      title: 'Wallet Balance',
+      title: t.stats.walletBalance,
       value: balance ? formatCurrency(balance.balance) : 'AOA 0.00',
       icon: <Wallet className="h-6 w-6 text-white" />,
       iconBg: 'bg-purple-500',

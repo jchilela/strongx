@@ -22,10 +22,12 @@ import { toast } from 'sonner';
 import { AxiosError } from 'axios';
 import { User, Shield, Bell, Eye, EyeOff, Save } from 'lucide-react';
 import type { NotificationPreferences } from '@/types/api';
+import { useLang } from '@/lib/lang';
 
 function ProfileTab() {
   const queryClient = useQueryClient();
   const storedUser = getStoredUser();
+  const { t } = useLang();
 
   const {
     register,
@@ -62,12 +64,12 @@ function ProfileTab() {
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-100">
           <User className="h-4 w-4 text-[#6366f1]" />
         </div>
-        <h2 className="text-base font-semibold text-gray-900">Profile Information</h2>
+        <h2 className="text-base font-semibold text-gray-900">{t.settings.profileInfo}</h2>
       </div>
 
       <form onSubmit={handleSubmit((data) => updateProfile(data))} className="space-y-4">
         <div className="space-y-1.5">
-          <Label htmlFor="name">Full Name</Label>
+          <Label htmlFor="name">{t.settings.fullName}</Label>
           <Input
             id="name"
             type="text"
@@ -77,7 +79,7 @@ function ProfileTab() {
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="email">Email Address</Label>
+          <Label htmlFor="email">{t.settings.emailAddress}</Label>
           <Input
             id="email"
             type="email"
@@ -85,11 +87,11 @@ function ProfileTab() {
             disabled
             className="bg-gray-50 text-gray-500"
           />
-          <p className="text-xs text-gray-400">Email cannot be changed. Contact support if needed.</p>
+          <p className="text-xs text-gray-400">{t.settings.emailCannotChange}</p>
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="phone">Phone Number</Label>
+          <Label htmlFor="phone">{t.settings.phoneNumber}</Label>
           <Input
             id="phone"
             type="tel"
@@ -97,12 +99,12 @@ function ProfileTab() {
             disabled
             className="bg-gray-50 text-gray-500"
           />
-          <p className="text-xs text-gray-400">Phone cannot be changed. Contact support if needed.</p>
+          <p className="text-xs text-gray-400">{t.settings.phoneCannotChange}</p>
         </div>
 
         <Button type="submit" loading={isPending}>
           <Save className="h-4 w-4 mr-2" />
-          Save Changes
+          {t.settings.saveChanges}
         </Button>
       </form>
     </div>
@@ -113,6 +115,7 @@ function SecurityTab() {
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const { t } = useLang();
 
   const {
     register,
@@ -146,17 +149,17 @@ function SecurityTab() {
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-100">
           <Shield className="h-4 w-4 text-[#6366f1]" />
         </div>
-        <h2 className="text-base font-semibold text-gray-900">Change Password</h2>
+        <h2 className="text-base font-semibold text-gray-900">{t.settings.changePassword}</h2>
       </div>
 
       <form onSubmit={handleSubmit((data) => changePassword(data))} className="space-y-4">
         <div className="space-y-1.5">
-          <Label htmlFor="currentPassword">Current Password</Label>
+          <Label htmlFor="currentPassword">{t.settings.currentPassword}</Label>
           <div className="relative">
             <Input
               id="currentPassword"
               type={showCurrent ? 'text' : 'password'}
-              placeholder="Enter current password"
+              placeholder={t.settings.enterCurrentPassword}
               error={errors.currentPassword?.message}
               className="pr-10"
               {...register('currentPassword')}
@@ -172,12 +175,12 @@ function SecurityTab() {
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="newPassword">New Password</Label>
+          <Label htmlFor="newPassword">{t.settings.newPassword}</Label>
           <div className="relative">
             <Input
               id="newPassword"
               type={showNew ? 'text' : 'password'}
-              placeholder="Enter new password"
+              placeholder={t.settings.enterNewPassword}
               error={errors.newPassword?.message}
               className="pr-10"
               {...register('newPassword')}
@@ -193,12 +196,12 @@ function SecurityTab() {
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="confirmPassword">Confirm New Password</Label>
+          <Label htmlFor="confirmPassword">{t.settings.confirmNewPassword}</Label>
           <div className="relative">
             <Input
               id="confirmPassword"
               type={showConfirm ? 'text' : 'password'}
-              placeholder="Repeat new password"
+              placeholder={t.settings.repeatNewPassword}
               error={errors.confirmPassword?.message}
               className="pr-10"
               {...register('confirmPassword')}
@@ -215,7 +218,7 @@ function SecurityTab() {
 
         <Button type="submit" loading={isPending}>
           <Shield className="h-4 w-4 mr-2" />
-          Update Password
+          {t.settings.updatePassword}
         </Button>
       </form>
     </div>
@@ -223,6 +226,7 @@ function SecurityTab() {
 }
 
 function NotificationsTab() {
+  const { t } = useLang();
   const [prefs, setPrefs] = useState<NotificationPreferences>({
     emailOnDelivery: false,
     emailOnFailure: true,
@@ -263,26 +267,10 @@ function NotificationsTab() {
   };
 
   const toggleItems = [
-    {
-      key: 'emailOnDelivery' as const,
-      title: 'Email on delivery',
-      description: 'Receive an email when a message is delivered',
-    },
-    {
-      key: 'emailOnFailure' as const,
-      title: 'Email on failure',
-      description: 'Receive an email when a message fails to deliver',
-    },
-    {
-      key: 'smsOnLowBalance' as const,
-      title: 'SMS on low balance',
-      description: 'Get an SMS when your wallet balance is low',
-    },
-    {
-      key: 'weeklyReport' as const,
-      title: 'Weekly report',
-      description: 'Receive a weekly summary of your usage',
-    },
+    { key: 'emailOnDelivery' as const, title: t.settings.emailOnDelivery, description: t.settings.emailOnDeliveryDesc },
+    { key: 'emailOnFailure' as const, title: t.settings.emailOnFailure, description: t.settings.emailOnFailureDesc },
+    { key: 'smsOnLowBalance' as const, title: t.settings.smsOnLowBalance, description: t.settings.smsOnLowBalanceDesc },
+    { key: 'weeklyReport' as const, title: t.settings.weeklyReport, description: t.settings.weeklyReportDesc },
   ];
 
   return (
@@ -291,7 +279,7 @@ function NotificationsTab() {
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-100">
           <Bell className="h-4 w-4 text-[#6366f1]" />
         </div>
-        <h2 className="text-base font-semibold text-gray-900">Notification Preferences</h2>
+        <h2 className="text-base font-semibold text-gray-900">{t.settings.notificationPrefs}</h2>
       </div>
 
       {isLoading ? (
@@ -320,7 +308,7 @@ function NotificationsTab() {
 
           {prefs.smsOnLowBalance && (
             <div className="space-y-1.5">
-              <Label htmlFor="threshold">Low Balance Threshold (AOA)</Label>
+              <Label htmlFor="threshold">{t.settings.lowBalanceThreshold}</Label>
               <Input
                 id="threshold"
                 type="number"
@@ -341,21 +329,22 @@ function NotificationsTab() {
 
       <Button onClick={() => updatePrefs(prefs)} loading={isPending}>
         <Save className="h-4 w-4 mr-2" />
-        Save Preferences
+        {t.settings.savePreferences}
       </Button>
     </div>
   );
 }
 
 export default function SettingsPage() {
+  const { t } = useLang();
   return (
-    <DashboardShell title="Settings">
+    <DashboardShell title={t.settings.title}>
       <div className="max-w-2xl">
         <Tabs defaultValue="profile">
           <TabsList className="mb-6">
-            <TabsTrigger value="profile">Profile</TabsTrigger>
-            <TabsTrigger value="security">Security</TabsTrigger>
-            <TabsTrigger value="notifications">Notifications</TabsTrigger>
+            <TabsTrigger value="profile">{t.settings.profile}</TabsTrigger>
+            <TabsTrigger value="security">{t.settings.security}</TabsTrigger>
+            <TabsTrigger value="notifications">{t.settings.notifications}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="profile">
