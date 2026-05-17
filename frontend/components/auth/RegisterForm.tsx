@@ -5,7 +5,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Eye, EyeOff, Zap } from 'lucide-react';
+import Image from 'next/image';
+import { Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -77,13 +78,8 @@ export function RegisterForm() {
     <div className="bg-white rounded-2xl shadow-2xl p-8">
       {/* Header */}
       <div className="text-center mb-8">
-        <div className="flex items-center justify-center gap-2 mb-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#6366f1]">
-            <Zap className="h-5 w-5 text-white" />
-          </div>
-          <span className="text-2xl font-bold text-gray-900">
-            Strong<span className="text-[#fb923c]">X</span>
-          </span>
+        <div className="flex items-center justify-center mb-4">
+          <Image src="/logo.png" alt="StrongX" width={160} height={92} className="object-contain" priority />
         </div>
         <h1 className="text-2xl font-bold text-gray-900">Create your account</h1>
         <p className="text-sm text-gray-500 mt-1">Start sending messages in minutes</p>

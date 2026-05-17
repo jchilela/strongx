@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
@@ -13,7 +14,6 @@ import {
   Settings,
   LogOut,
   X,
-  Zap,
   ShieldCheck,
   TrendingUp,
 } from 'lucide-react';
@@ -85,13 +85,8 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       >
         {/* Logo */}
         <div className="flex items-center justify-between h-16 px-4 border-b border-slate-700">
-          <Link href="/dashboard" className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#6366f1]">
-              <Zap className="h-5 w-5 text-white" />
-            </div>
-            <span className="text-white font-bold text-lg">
-              Strong<span className="text-[#fb923c]">X</span>
-            </span>
+          <Link href="/dashboard" className="flex items-center">
+            <Image src="/logo.png" alt="StrongX" width={120} height={69} className="object-contain" priority />
           </Link>
           <button
             onClick={onClose}
