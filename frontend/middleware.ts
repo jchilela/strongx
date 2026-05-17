@@ -40,12 +40,16 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // Redirect root to dashboard or login
+  // On the app subdomain redirect / → dashboard or login; on the marketing domain serve landing page
   if (pathname === '/') {
-    if (isAuthenticated) {
-      return NextResponse.redirect(new URL('/dashboard', request.url));
+    const host = request.headers.get('host') || '';
+    if (host.startsWith('app.')) {
+      if (isAuthenticated) {
+        return NextResponse.redirect(new URL('/dashboard', request.url));
+      }
+      return NextResponse.redirect(new URL('/login', request.url));
     }
-    return NextResponse.redirect(new URL('/login', request.url));
+    return NextResponse.next();
   }
 
   return NextResponse.next();
