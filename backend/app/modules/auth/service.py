@@ -1,5 +1,9 @@
+import asyncio
 import hashlib
+import smtplib
 import uuid
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from typing import Optional
 
 import httpx
@@ -54,60 +58,81 @@ async def _send_otp_sms(phone: str, otp: str) -> None:
         logger.error(f"TelcoSMS exception: {exc}")
 
 
-async def _send_verification_email(email: str, token: str, full_name: str) -> None:
-    """Send email verification link via SendGrid."""
-    verify_url = f"{settings.FRONTEND_URL}/verify-email?token={token}"
+def _smtp_send(to_email: str, subject: str, html_body: str) -> None:
+    """Send an email via SMTP (runs in thread executor)."""
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_USER}>"
+    msg["To"] = to_email
+    msg.attach(MIMEText(html_body, "html"))
 
-    if not settings.TWILIO_SENDGRID_API_KEY:
-        logger.info(f"[EMAIL-VERIFY] To: {email} | Link: {verify_url}")
+    with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
+        server.ehlo()
+        server.starttls()
+        server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+        server.sendmail(settings.SMTP_USER, to_email, msg.as_string())
+
+
+async def _send_email(to_email: str, subject: str, html_body: str) -> None:
+    """Dispatch email via SMTP or SendGrid, log if neither configured."""
+    if settings.SMTP_USER and settings.SMTP_PASSWORD:
+        try:
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(None, _smtp_send, to_email, subject, html_body)
+            logger.info(f"[EMAIL] Sent to {to_email}: {subject}")
+        except Exception as exc:
+            logger.error(f"SMTP error sending to {to_email}: {exc}")
         return
 
-    try:
-        import sendgrid
-        from sendgrid.helpers.mail import Mail
+    if settings.TWILIO_SENDGRID_API_KEY:
+        try:
+            import sendgrid
+            from sendgrid.helpers.mail import Mail
+            sg = sendgrid.SendGridAPIClient(api_key=settings.TWILIO_SENDGRID_API_KEY)
+            message = Mail(
+                from_email=("noreply@strongx.it.ao", "StrongX"),
+                to_emails=to_email,
+                subject=subject,
+                html_content=html_body,
+            )
+            sg.send(message)
+            logger.info(f"[EMAIL-SG] Sent to {to_email}: {subject}")
+        except Exception as exc:
+            logger.error(f"SendGrid exception: {exc}")
+        return
 
-        sg = sendgrid.SendGridAPIClient(api_key=settings.TWILIO_SENDGRID_API_KEY)
-        message = Mail(
-            from_email=("noreply@strongx.it.ao", "StrongX"),
-            to_emails=email,
-            subject="Verify your StrongX email",
-            html_content=(
-                f"<p>Hi {full_name},</p>"
-                f"<p>Click below to verify your email:</p>"
-                f'<p><a href="{verify_url}">Verify Email</a></p>'
-                f"<p>This link expires in 24 hours.</p>"
-            ),
-        )
-        sg.send(message)
-    except Exception as exc:
-        logger.error(f"SendGrid exception: {exc}")
+    logger.warning(f"[EMAIL-SKIP] No email provider configured. To={to_email} Subject={subject}")
+
+
+async def _send_verification_email(email: str, token: str, full_name: str) -> None:
+    verify_url = f"{settings.FRONTEND_URL}/verify-email?token={token}"
+    await _send_email(
+        to_email=email,
+        subject="Verify your StrongX email",
+        html_body=(
+            f"<p>Hi {full_name},</p>"
+            f"<p>Click the link below to verify your email address:</p>"
+            f'<p><a href="{verify_url}" style="background:#6366f1;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;">Verify Email</a></p>'
+            f"<p>Or copy this link: {verify_url}</p>"
+            f"<p>This link expires in 24 hours.</p>"
+            f"<p>— The StrongX Team</p>"
+        ),
+    )
 
 
 async def _send_password_reset_email(email: str, token: str) -> None:
     reset_url = f"{settings.FRONTEND_URL}/reset-password?token={token}"
-
-    if not settings.TWILIO_SENDGRID_API_KEY:
-        logger.info(f"[PASSWORD-RESET] To: {email} | Link: {reset_url}")
-        return
-
-    try:
-        import sendgrid
-        from sendgrid.helpers.mail import Mail
-
-        sg = sendgrid.SendGridAPIClient(api_key=settings.TWILIO_SENDGRID_API_KEY)
-        message = Mail(
-            from_email=("noreply@strongx.it.ao", "StrongX"),
-            to_emails=email,
-            subject="Reset your StrongX password",
-            html_content=(
-                f"<p>Click below to reset your password:</p>"
-                f'<p><a href="{reset_url}">Reset Password</a></p>'
-                f"<p>This link expires in 1 hour. If you did not request this, ignore this email.</p>"
-            ),
-        )
-        sg.send(message)
-    except Exception as exc:
-        logger.error(f"SendGrid exception: {exc}")
+    await _send_email(
+        to_email=email,
+        subject="Reset your StrongX password",
+        html_body=(
+            f"<p>Click the link below to reset your password:</p>"
+            f'<p><a href="{reset_url}" style="background:#6366f1;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;">Reset Password</a></p>'
+            f"<p>Or copy this link: {reset_url}</p>"
+            f"<p>This link expires in 1 hour. If you did not request this, ignore this email.</p>"
+            f"<p>— The StrongX Team</p>"
+        ),
+    )
 
 
 async def register_user(db: AsyncSession, full_name: str, email: str, phone: str, password: str) -> str:

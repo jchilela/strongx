@@ -32,6 +32,13 @@ class Settings(BaseSettings):
     TWILIO_WHATSAPP_FROM: str = ""
     TWILIO_SENDGRID_API_KEY: str = ""
 
+    # SMTP (Gmail or any SMTP provider)
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM_NAME: str = "StrongX"
+
     # AppyPay
     APPYPAY_TOKEN_URL: str = (
         "https://login.microsoftonline.com/auth.appypay.co.ao/oauth2/token"
