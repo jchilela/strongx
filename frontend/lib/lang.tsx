@@ -385,7 +385,7 @@ export const translations = {
       resetBtn: 'Reset Password',
     },
   },
-} as const;
+};
 
 export type Translations = typeof translations.en;
 
