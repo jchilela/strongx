@@ -96,6 +96,7 @@ const translations = {
       ],
       customPricing: 'Preços personalizados disponíveis para grandes volumes. Contacte-nos.',
       getStarted: 'Começar',
+      comingSoon: 'Brevemente',
     },
     api: {
       badge: 'Pronto para Developers',
@@ -212,6 +213,7 @@ const translations = {
       ],
       customPricing: 'Custom pricing available for high-volume senders. Contact us for enterprise rates.',
       getStarted: 'Get started',
+      comingSoon: 'Coming Soon',
     },
     api: {
       badge: 'Developer-ready',
@@ -461,7 +463,12 @@ export function LandingPage() {
             </div>
 
             {/* Email */}
-            <div className="rounded-2xl border-2 border-orange-200 bg-orange-50 ring-2 ring-[#6366f1] ring-offset-2 p-8">
+            <div className="rounded-2xl border-2 border-orange-200 bg-orange-50 ring-2 ring-[#6366f1] ring-offset-2 p-8 relative overflow-hidden">
+              <div className="absolute top-3 right-3">
+                <span className="inline-flex items-center bg-amber-100 text-amber-700 text-xs font-bold px-2.5 py-1 rounded-full border border-amber-200">
+                  {tr.pricing.comingSoon}
+                </span>
+              </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#fb923c] mb-5">
                 <Mail className="h-6 w-6 text-white" />
               </div>
@@ -487,7 +494,12 @@ export function LandingPage() {
             </div>
 
             {/* WhatsApp */}
-            <div className="rounded-2xl border-2 border-green-200 bg-green-50 p-8">
+            <div className="rounded-2xl border-2 border-green-200 bg-green-50 p-8 relative overflow-hidden">
+              <div className="absolute top-3 right-3">
+                <span className="inline-flex items-center bg-amber-100 text-amber-700 text-xs font-bold px-2.5 py-1 rounded-full border border-amber-200">
+                  {tr.pricing.comingSoon}
+                </span>
+              </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-green-500 mb-5">
                 <MessageCircle className="h-6 w-6 text-white" />
               </div>
