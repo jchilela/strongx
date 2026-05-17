@@ -10,12 +10,14 @@ import { maskPhone } from '@/lib/utils';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { AxiosError } from 'axios';
+import { useLang } from '@/lib/lang';
 
 function VerifyPhoneContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const phone = searchParams.get('phone') || '';
   const email = searchParams.get('email') || '';
+  const { t } = useLang();
 
   const [otp, setOtp] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -35,23 +37,18 @@ function VerifyPhoneContent() {
 
   const handleVerify = async () => {
     if (otp.length !== 6) {
-      setOtpError('Please enter the complete 6-digit code');
+      setOtpError(t.auth.pleaseEnterOtp);
       return;
     }
-
     setIsLoading(true);
     setOtpError('');
-
     try {
       await authApi.verifyPhone({ phone, otp });
-      toast.success('Phone verified!', {
-        description: 'Now please verify your email address.',
-      });
+      toast.success('Phone verified!', { description: 'Now please verify your email address.' });
       router.push(`/verify-email?email=${encodeURIComponent(email)}`);
     } catch (error) {
       const axiosError = error as AxiosError<{ message: string }>;
-      const message = axiosError.response?.data?.message || 'Invalid or expired code. Please try again.';
-      setOtpError(message);
+      setOtpError(axiosError.response?.data?.message || 'Invalid or expired code. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -78,43 +75,34 @@ function VerifyPhoneContent() {
 
   return (
     <div className="bg-white rounded-2xl shadow-2xl p-8">
-      {/* Back link */}
       <Link
         href="/register"
         className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-6"
       >
         <ArrowLeft className="h-4 w-4" />
-        Back to register
+        {t.auth.backToRegister}
       </Link>
 
-      {/* Header */}
       <div className="text-center mb-8">
         <div className="flex h-16 w-16 items-center justify-center rounded-full bg-indigo-100 mx-auto mb-4">
           <Phone className="h-8 w-8 text-[#6366f1]" />
         </div>
-        <h1 className="text-2xl font-bold text-gray-900">Verify your phone</h1>
-        <p className="text-sm text-gray-500 mt-2">
-          We&apos;ve sent a 6-digit code to
-        </p>
+        <h1 className="text-2xl font-bold text-gray-900">{t.auth.verifyPhoneTitle}</h1>
+        <p className="text-sm text-gray-500 mt-2">{t.auth.verifyPhoneDesc}</p>
         <p className="text-sm font-semibold text-gray-700 mt-1">
-          {phone ? maskPhone(phone) : 'your phone number'}
+          {phone ? maskPhone(phone) : t.auth.yourPhoneNumber}
         </p>
       </div>
 
-      {/* OTP Input */}
       <div className="mb-6">
         <OtpInput
           value={otp}
-          onChange={(val) => {
-            setOtp(val);
-            setOtpError('');
-          }}
+          onChange={(val) => { setOtp(val); setOtpError(''); }}
           disabled={isLoading}
           error={otpError}
         />
       </div>
 
-      {/* Verify button */}
       <Button
         className="w-full"
         size="lg"
@@ -122,10 +110,9 @@ function VerifyPhoneContent() {
         loading={isLoading}
         disabled={otp.length !== 6}
       >
-        Verify Phone Number
+        {t.auth.verifyPhoneBtn}
       </Button>
 
-      {/* Resend */}
       <div className="text-center mt-6">
         {canResend ? (
           <button
@@ -133,19 +120,17 @@ function VerifyPhoneContent() {
             disabled={isResending}
             className="text-sm text-[#6366f1] hover:underline font-medium disabled:opacity-50"
           >
-            {isResending ? 'Sending...' : 'Resend code'}
+            {isResending ? t.auth.sending : t.auth.resendCode}
           </button>
         ) : (
           <p className="text-sm text-gray-500">
-            Resend code in{' '}
+            {t.auth.resendCodeIn}{' '}
             <span className="font-semibold text-gray-700">{countdown}s</span>
           </p>
         )}
       </div>
 
-      <p className="text-xs text-gray-400 text-center mt-4">
-        Check your SMS inbox. The code expires in 10 minutes.
-      </p>
+      <p className="text-xs text-gray-400 text-center mt-4">{t.auth.checkSms}</p>
     </div>
   );
 }

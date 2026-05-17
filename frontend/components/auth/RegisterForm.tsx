@@ -14,12 +14,14 @@ import { registerSchema, type RegisterSchema } from '@/lib/validations';
 import { authApi } from '@/lib/api';
 import { toast } from 'sonner';
 import { AxiosError } from 'axios';
+import { useLang, LangToggle } from '@/lib/lang';
 
 export function RegisterForm() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const { t } = useLang();
 
   const {
     register,
@@ -28,9 +30,7 @@ export function RegisterForm() {
     formState: { errors },
   } = useForm<RegisterSchema>({
     resolver: zodResolver(registerSchema),
-    defaultValues: {
-      phone: '+244',
-    },
+    defaultValues: { phone: '+244' },
   });
 
   const password = watch('password', '');
@@ -46,7 +46,6 @@ export function RegisterForm() {
   };
 
   const passwordStrength = getPasswordStrength(password);
-  const strengthLabels = ['', 'Very Weak', 'Weak', 'Fair', 'Strong', 'Very Strong'];
   const strengthColors = ['', 'bg-red-500', 'bg-orange-500', 'bg-yellow-500', 'bg-green-500', 'bg-green-600'];
 
   const onSubmit = async (data: RegisterSchema) => {
@@ -79,16 +78,20 @@ export function RegisterForm() {
       {/* Header */}
       <div className="text-center mb-8">
         <div className="flex items-center justify-center mb-4">
-          <Image src="/logo.png" alt="StrongX" width={160} height={92} className="object-contain" priority />
+          <a href="https://strongx.it.ao">
+            <Image src="/logo.png" alt="StrongX" width={160} height={92} className="object-contain" priority />
+          </a>
         </div>
-        <h1 className="text-2xl font-bold text-gray-900">Create your account</h1>
-        <p className="text-sm text-gray-500 mt-1">Start sending messages in minutes</p>
+        <div className="flex items-center justify-center gap-3 mb-3">
+          <LangToggle />
+        </div>
+        <h1 className="text-2xl font-bold text-gray-900">{t.auth.createYourAccount}</h1>
+        <p className="text-sm text-gray-500 mt-1">{t.auth.startSending}</p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        {/* Full Name */}
         <div className="space-y-1.5">
-          <Label htmlFor="name">Full Name</Label>
+          <Label htmlFor="name">{t.auth.fullName}</Label>
           <Input
             id="name"
             type="text"
@@ -99,9 +102,8 @@ export function RegisterForm() {
           />
         </div>
 
-        {/* Email */}
         <div className="space-y-1.5">
-          <Label htmlFor="email">Email address</Label>
+          <Label htmlFor="email">{t.auth.emailAddress}</Label>
           <Input
             id="email"
             type="email"
@@ -112,11 +114,10 @@ export function RegisterForm() {
           />
         </div>
 
-        {/* Phone */}
         <div className="space-y-1.5">
           <Label htmlFor="phone">
-            Phone number
-            <span className="text-gray-400 font-normal ml-1 text-xs">(+244 format)</span>
+            {t.auth.phone}
+            <span className="text-gray-400 font-normal ml-1 text-xs">{t.auth.phoneFormat}</span>
           </Label>
           <Input
             id="phone"
@@ -128,9 +129,8 @@ export function RegisterForm() {
           />
         </div>
 
-        {/* Password */}
         <div className="space-y-1.5">
-          <Label htmlFor="password">Password</Label>
+          <Label htmlFor="password">{t.auth.password}</Label>
           <div className="relative">
             <Input
               id="password"
@@ -149,7 +149,6 @@ export function RegisterForm() {
               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
           </div>
-          {/* Password strength */}
           {password && (
             <div className="space-y-1">
               <div className="flex gap-1">
@@ -157,23 +156,20 @@ export function RegisterForm() {
                   <div
                     key={level}
                     className={`h-1 flex-1 rounded-full transition-colors ${
-                      passwordStrength >= level
-                        ? strengthColors[passwordStrength]
-                        : 'bg-gray-200'
+                      passwordStrength >= level ? strengthColors[passwordStrength] : 'bg-gray-200'
                     }`}
                   />
                 ))}
               </div>
               <p className="text-xs text-gray-500">
-                Strength: <span className="font-medium">{strengthLabels[passwordStrength]}</span>
+                {t.auth.passwordStrength}: <span className="font-medium">{t.auth.strengthLabels[passwordStrength]}</span>
               </p>
             </div>
           )}
         </div>
 
-        {/* Confirm Password */}
         <div className="space-y-1.5">
-          <Label htmlFor="confirmPassword">Confirm Password</Label>
+          <Label htmlFor="confirmPassword">{t.auth.confirmPassword}</Label>
           <div className="relative">
             <Input
               id="confirmPassword"
@@ -195,18 +191,16 @@ export function RegisterForm() {
         </div>
 
         <Button type="submit" className="w-full" size="lg" loading={isLoading}>
-          Create Account
+          {t.auth.createAccountBtn}
         </Button>
 
-        <p className="text-xs text-gray-400 text-center">
-          By creating an account, you agree to our Terms of Service and Privacy Policy.
-        </p>
+        <p className="text-xs text-gray-400 text-center">{t.auth.agreeTerms}</p>
       </form>
 
       <p className="text-center text-sm text-gray-500 mt-6">
-        Already have an account?{' '}
+        {t.auth.alreadyAccount}{' '}
         <Link href="/login" className="text-[#6366f1] font-medium hover:underline">
-          Sign in
+          {t.auth.signIn}
         </Link>
       </p>
     </div>

@@ -13,6 +13,7 @@ import { resetPasswordSchema, type ResetPasswordSchema } from '@/lib/validations
 import { authApi } from '@/lib/api';
 import { toast } from 'sonner';
 import { AxiosError } from 'axios';
+import { useLang, LangToggle } from '@/lib/lang';
 
 function ResetPasswordContent() {
   const router = useRouter();
@@ -22,6 +23,7 @@ function ResetPasswordContent() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const { t } = useLang();
 
   const {
     register,
@@ -37,12 +39,10 @@ function ResetPasswordContent() {
         <div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-100 mx-auto mb-4">
           <AlertCircle className="h-8 w-8 text-red-600" />
         </div>
-        <h1 className="text-xl font-bold text-gray-900 mb-2">Invalid reset link</h1>
-        <p className="text-sm text-gray-500 mb-6">
-          This password reset link is invalid or has expired. Please request a new one.
-        </p>
+        <h1 className="text-xl font-bold text-gray-900 mb-2">{t.auth.invalidResetLink}</h1>
+        <p className="text-sm text-gray-500 mb-6">{t.auth.invalidResetDesc}</p>
         <Link href="/forgot-password">
-          <Button className="w-full">Request new reset link</Button>
+          <Button className="w-full">{t.auth.requestNewReset}</Button>
         </Link>
       </div>
     );
@@ -54,12 +54,10 @@ function ResetPasswordContent() {
         <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-100 mx-auto mb-4">
           <CheckCircle className="h-8 w-8 text-green-600" />
         </div>
-        <h1 className="text-xl font-bold text-gray-900 mb-2">Password reset!</h1>
-        <p className="text-sm text-gray-500 mb-6">
-          Your password has been reset successfully. You can now sign in with your new password.
-        </p>
+        <h1 className="text-xl font-bold text-gray-900 mb-2">{t.auth.passwordResetSuccess}</h1>
+        <p className="text-sm text-gray-500 mb-6">{t.auth.passwordResetSuccessDesc}</p>
         <Link href="/login">
-          <Button className="w-full">Sign in</Button>
+          <Button className="w-full">{t.auth.signInLink}</Button>
         </Link>
       </div>
     );
@@ -70,7 +68,7 @@ function ResetPasswordContent() {
     try {
       await authApi.resetPassword({ token, password: data.password });
       setSuccess(true);
-      toast.success('Password reset successful!');
+      toast.success(t.auth.passwordResetSuccess);
     } catch (error) {
       const axiosError = error as AxiosError<{ message: string }>;
       const message =
@@ -85,20 +83,21 @@ function ResetPasswordContent() {
   return (
     <div className="bg-white rounded-2xl shadow-2xl p-8">
       <div className="text-center mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Set new password</h1>
-        <p className="text-sm text-gray-500 mt-2">
-          Choose a strong password for your account.
-        </p>
+        <div className="flex items-center justify-center gap-3 mb-3">
+          <LangToggle />
+        </div>
+        <h1 className="text-2xl font-bold text-gray-900">{t.auth.setNewPassword}</h1>
+        <p className="text-sm text-gray-500 mt-2">{t.auth.chooseStrongPassword}</p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         <div className="space-y-1.5">
-          <Label htmlFor="password">New Password</Label>
+          <Label htmlFor="password">{t.auth.newPassword}</Label>
           <div className="relative">
             <Input
               id="password"
               type={showPassword ? 'text' : 'password'}
-              placeholder="Enter new password"
+              placeholder={t.auth.enterPassword}
               autoComplete="new-password"
               error={errors.password?.message}
               className="pr-10"
@@ -115,12 +114,12 @@ function ResetPasswordContent() {
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="confirmPassword">Confirm New Password</Label>
+          <Label htmlFor="confirmPassword">{t.auth.confirmPassword2}</Label>
           <div className="relative">
             <Input
               id="confirmPassword"
               type={showConfirm ? 'text' : 'password'}
-              placeholder="Repeat new password"
+              placeholder={t.auth.enterPassword}
               autoComplete="new-password"
               error={errors.confirmPassword?.message}
               className="pr-10"
@@ -137,13 +136,13 @@ function ResetPasswordContent() {
         </div>
 
         <Button type="submit" className="w-full" size="lg" loading={isLoading}>
-          Reset Password
+          {t.auth.resetBtn}
         </Button>
       </form>
 
       <div className="text-center mt-4">
         <Link href="/login" className="text-sm text-gray-500 hover:text-gray-700">
-          Remember your password? Sign in
+          {t.auth.rememberPassword}
         </Link>
       </div>
     </div>
