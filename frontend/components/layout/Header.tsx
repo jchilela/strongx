@@ -1,9 +1,8 @@
 'use client';
 
-import { Menu, Bell } from 'lucide-react';
+import { Menu, Bell, MessageSquare, Mail, MessageCircle } from 'lucide-react';
 import { useWalletBalance } from '@/hooks/useWallet';
 import { useSocket } from '@/hooks/useSocket';
-import { formatCurrency } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 
 interface HeaderProps {
@@ -14,6 +13,10 @@ interface HeaderProps {
 export function Header({ title, onMenuClick }: HeaderProps) {
   const { data: balance } = useWalletBalance();
   const { isConnected } = useSocket();
+
+  const smsCount = balance ? Math.floor(balance.balance / balance.smsCost) : 0;
+  const emailCount = balance ? Math.floor(balance.balance / balance.emailCost) : 0;
+  const waCount = balance ? Math.floor(balance.balance / balance.whatsappCost) : 0;
 
   return (
     <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 lg:px-6">
@@ -30,13 +33,23 @@ export function Header({ title, onMenuClick }: HeaderProps) {
 
       {/* Right side */}
       <div className="flex items-center gap-3">
-        {/* Wallet balance */}
-        <div className="hidden sm:flex items-center gap-2 bg-orange-50 text-orange-700 px-3 py-1.5 rounded-full text-sm font-semibold">
-          <div className="h-2 w-2 rounded-full bg-[#fb923c]" />
-          <span>
-            {balance ? formatCurrency(balance.balance) : 'AOA 0.00'}
-          </span>
-        </div>
+        {/* Message counts */}
+        {balance && (
+          <div className="hidden sm:flex items-center gap-2">
+            <div className="flex items-center gap-1 bg-indigo-50 text-indigo-700 px-2.5 py-1.5 rounded-full text-xs font-semibold" title="SMS available">
+              <MessageSquare className="h-3.5 w-3.5" />
+              <span>{smsCount.toLocaleString()}</span>
+            </div>
+            <div className="flex items-center gap-1 bg-blue-50 text-blue-700 px-2.5 py-1.5 rounded-full text-xs font-semibold" title="Emails available">
+              <Mail className="h-3.5 w-3.5" />
+              <span>{emailCount.toLocaleString()}</span>
+            </div>
+            <div className="flex items-center gap-1 bg-green-50 text-green-700 px-2.5 py-1.5 rounded-full text-xs font-semibold" title="WhatsApp messages available">
+              <MessageCircle className="h-3.5 w-3.5" />
+              <span>{waCount.toLocaleString()}</span>
+            </div>
+          </div>
+        )}
 
         {/* Notification bell */}
         <button className="relative p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">

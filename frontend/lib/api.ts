@@ -209,4 +209,8 @@ export const adminApi = {
     api.post<ApiResponse<{ balance: number; added: number }>>(`/admin/users/${userId}/wallet/add`, { amount, description }),
   getEarningsStats: () =>
     api.get<ApiResponse<import('@/types/admin').EarningsStats>>('/admin/stats/earnings'),
+  getWalletSummary: () =>
+    api.get<ApiResponse<{ totalWalletBalance: number; totalEarned: number; usersWithFunds: number }>>('/admin/stats/wallets'),
+  resetUserPassword: (userId: string) =>
+    api.post<ApiResponse<{ newPassword: string }>>(`/admin/users/${userId}/reset-password`),
 };

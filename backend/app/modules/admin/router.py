@@ -181,3 +181,23 @@ async def get_earnings_stats(
 ) -> dict:
     stats = await service.get_earnings_stats(db)
     return {"success": True, "data": stats}
+
+
+@router.get("/stats/wallets")
+async def get_wallet_summary(
+    _: User = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    summary = await service.get_wallet_summary(db)
+    return {"success": True, "data": summary}
+
+
+@router.post("/users/{user_id}/reset-password")
+async def reset_user_password(
+    user_id: uuid.UUID,
+    _: User = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    new_password = await service.reset_user_password(db, user_id)
+    await db.commit()
+    return {"success": True, "data": {"newPassword": new_password}}

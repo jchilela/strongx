@@ -1,4 +1,6 @@
 import uuid
+import secrets
+import string
 from decimal import Decimal
 from datetime import datetime, timezone
 from typing import Optional
@@ -9,6 +11,7 @@ from app.modules.applications.models import Application
 from app.modules.auth.models import ApiKey
 from app.modules.wallet.models import Wallet, WalletTransaction
 from app.core.exceptions import NotFoundError
+from app.core.security import hash_password
 
 
 async def list_users(db: AsyncSession) -> list[User]:
@@ -170,3 +173,47 @@ async def get_earnings_stats(db: AsyncSession) -> dict:
         "topUsers": top_users,
         "totalAllTime": total_all_time,
     }
+
+
+async def get_wallet_summary(db: AsyncSession) -> dict:
+    """Total balance across all user wallets and total earned (debits)."""
+    total_balance_q = await db.execute(
+        select(func.coalesce(func.sum(Wallet.balance), 0))
+    )
+    total_balance = float(total_balance_q.scalar_one())
+
+    total_earned_q = await db.execute(text("""
+        SELECT COALESCE(SUM(amount), 0) as total
+        FROM wallet_transactions
+        WHERE type = 'debit' AND status = 'completed'
+    """))
+    total_earned = float(total_earned_q.scalar_one())
+
+    user_count_q = await db.execute(
+        select(func.count(Wallet.id)).where(Wallet.balance > 0)
+    )
+    users_with_funds = int(user_count_q.scalar_one())
+
+    return {
+        "totalWalletBalance": total_balance,
+        "totalEarned": total_earned,
+        "usersWithFunds": users_with_funds,
+    }
+
+
+async def reset_user_password(db: AsyncSession, user_id: uuid.UUID) -> str:
+    """Generate a new random password for a user and return it in plain text."""
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise NotFoundError("User not found")
+    alphabet = string.ascii_letters + string.digits + "!@#$"
+    new_password = (
+        secrets.choice(string.ascii_uppercase)
+        + secrets.choice(string.digits)
+        + secrets.choice("!@#$")
+        + "".join(secrets.choice(alphabet) for _ in range(9))
+    )
+    user.password_hash = hash_password(new_password)
+    await db.flush()
+    return new_password

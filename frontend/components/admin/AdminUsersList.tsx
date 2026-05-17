@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Users, Search, ChevronRight, Key,
-  DollarSign, Shield, ShieldOff, RefreshCw, PlusCircle,
+  DollarSign, Shield, ShieldOff, RefreshCw, PlusCircle, KeyRound, Wallet,
+  TrendingUp,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,7 +20,7 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { adminApi } from '@/lib/api';
 import type { AdminUser } from '@/types/admin';
 import type { ApiKey } from '@/types/api';
-import { formatDate } from '@/lib/utils';
+import { formatDate, formatCurrency } from '@/lib/utils';
 import { toast } from 'sonner';
 import Link from 'next/link';
 
@@ -102,6 +103,70 @@ function PricingModal({
           <Button onClick={() => save()} disabled={isPending}>
             {isPending ? 'Saving...' : 'Save'}
           </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ResetPasswordModal({
+  user,
+  open,
+  onOpenChange,
+}: {
+  user: AdminUser;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const [newPassword, setNewPassword] = useState<string | null>(null);
+
+  const { mutate: reset, isPending } = useMutation({
+    mutationFn: () => adminApi.resetUserPassword(user.id),
+    onSuccess: (res) => {
+      setNewPassword(res.data.data.newPassword);
+      toast.success('Password reset successfully');
+    },
+    onError: () => toast.error('Failed to reset password'),
+  });
+
+  const handleClose = () => {
+    setNewPassword(null);
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Reset Password — {user.name}</DialogTitle>
+        </DialogHeader>
+        {newPassword ? (
+          <div className="space-y-3 py-2">
+            <p className="text-sm text-gray-600">New password generated. Share it with the user and ask them to change it after login.</p>
+            <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5">
+              <code className="flex-1 text-sm font-mono text-gray-900 select-all">{newPassword}</code>
+              <button
+                onClick={() => { navigator.clipboard.writeText(newPassword); toast.success('Copied'); }}
+                className="text-indigo-500 hover:text-indigo-700 text-xs font-medium"
+              >
+                Copy
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="py-2">
+            <p className="text-sm text-gray-600">
+              This will generate a new random password for <strong>{user.email}</strong>. The current password will stop working immediately.
+            </p>
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={handleClose}>{newPassword ? 'Done' : 'Cancel'}</Button>
+          {!newPassword && (
+            <Button variant="destructive" disabled={isPending} onClick={() => reset()}>
+              {isPending ? 'Resetting...' : 'Reset Password'}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -247,6 +312,16 @@ export function AdminUsersList() {
   const [pricingUser, setPricingUser] = useState<AdminUser | null>(null);
   const [keysUser, setKeysUser] = useState<AdminUser | null>(null);
   const [fundsUser, setFundsUser] = useState<AdminUser | null>(null);
+  const [resetUser, setResetUser] = useState<AdminUser | null>(null);
+
+  const { data: walletSummary } = useQuery({
+    queryKey: ['admin-wallet-summary'],
+    queryFn: async () => {
+      const res = await adminApi.getWalletSummary();
+      return res.data.data;
+    },
+    staleTime: 30000,
+  });
 
   const { data: users, isLoading } = useQuery({
     queryKey: ['admin-users'],
@@ -279,6 +354,37 @@ export function AdminUsersList() {
 
   return (
     <div className="space-y-4">
+      {/* Wallet summary cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-50">
+            <Wallet className="h-5 w-5 text-green-600" />
+          </div>
+          <div>
+            <p className="text-xs text-gray-500">Total in Wallets</p>
+            <p className="text-lg font-bold text-gray-900">{walletSummary ? formatCurrency(walletSummary.totalWalletBalance) : '—'}</p>
+          </div>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50">
+            <TrendingUp className="h-5 w-5 text-indigo-600" />
+          </div>
+          <div>
+            <p className="text-xs text-gray-500">Total Earned</p>
+            <p className="text-lg font-bold text-gray-900">{walletSummary ? formatCurrency(walletSummary.totalEarned) : '—'}</p>
+          </div>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-50">
+            <Users className="h-5 w-5 text-orange-600" />
+          </div>
+          <div>
+            <p className="text-xs text-gray-500">Users with Funds</p>
+            <p className="text-lg font-bold text-gray-900">{walletSummary?.usersWithFunds ?? '—'}</p>
+          </div>
+        </div>
+      </div>
+
       {/* Search + links */}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 min-w-48">
@@ -381,6 +487,14 @@ export function AdminUsersList() {
                         >
                           <Key className="h-4 w-4 text-gray-500" />
                         </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          title="Reset password"
+                          onClick={() => setResetUser(user)}
+                        >
+                          <KeyRound className="h-4 w-4 text-amber-500" />
+                        </Button>
                       </div>
                     </td>
                   </tr>
@@ -410,6 +524,13 @@ export function AdminUsersList() {
           user={fundsUser}
           open={!!fundsUser}
           onOpenChange={(open) => { if (!open) setFundsUser(null); }}
+        />
+      )}
+      {resetUser && (
+        <ResetPasswordModal
+          user={resetUser}
+          open={!!resetUser}
+          onOpenChange={(open) => { if (!open) setResetUser(null); }}
         />
       )}
     </div>
