@@ -31,6 +31,7 @@ async def update_user(db: AsyncSession, user_id: uuid.UUID, updates: dict) -> Us
     user = await get_user(db, user_id)
     field_map = {
         "isActive": "is_active",
+        "isAdmin": "is_admin",
         "smsCost": "sms_cost",
         "emailCost": "email_cost",
         "whatsappCost": "whatsapp_cost",

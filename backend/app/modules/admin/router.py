@@ -57,6 +57,7 @@ def _serialize_key(k) -> dict:
 
 class UpdateUserRequest(BaseModel):
     isActive: Optional[bool] = None
+    isAdmin: Optional[bool] = None
     smsCost: Optional[Decimal] = None
     emailCost: Optional[Decimal] = None
     whatsappCost: Optional[Decimal] = None

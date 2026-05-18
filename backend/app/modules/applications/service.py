@@ -1,6 +1,7 @@
 import uuid
 from typing import Optional
 
+from loguru import logger
 from slugify import slugify
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -36,7 +37,60 @@ async def create_application(
     db.add(app)
     await db.flush()
     await db.refresh(app)
+    await _notify_admins_new_application(db, app, user_id)
     return app
+
+
+async def _notify_admins_new_application(
+    db: AsyncSession, app: Application, user_id: uuid.UUID
+) -> None:
+    from app.modules.users.models import User
+    from app.modules.auth.service import _send_email
+
+    creator_result = await db.execute(select(User).where(User.id == user_id))
+    creator = creator_result.scalar_one_or_none()
+    creator_name = creator.full_name if creator else "Unknown"
+    creator_email = creator.email if creator else "Unknown"
+
+    admin_result = await db.execute(
+        select(User).where(User.is_admin == True, User.is_active == True)  # noqa: E712
+    )
+    admins = list(admin_result.scalars().all())
+    if not admins:
+        return
+
+    subject = f"[StrongX] Nova aplicação pendente: {app.name}"
+    html_body = f"""
+<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
+  <h2 style="color: #6366f1; margin-bottom: 8px;">Nova Aplicação Aguarda Aprovação</h2>
+  <p style="color: #374151;">Uma nova aplicação foi submetida e aguarda a sua aprovação.</p>
+  <table style="width: 100%; border-collapse: collapse; margin: 16px 0; background: #f9fafb; border-radius: 8px;">
+    <tr>
+      <td style="padding: 10px 14px; font-weight: bold; color: #374151; width: 140px;">Aplicação:</td>
+      <td style="padding: 10px 14px; color: #111827;">{app.name}</td>
+    </tr>
+    <tr style="background: #fff;">
+      <td style="padding: 10px 14px; font-weight: bold; color: #374151;">Submetida por:</td>
+      <td style="padding: 10px 14px; color: #111827;">{creator_name} ({creator_email})</td>
+    </tr>
+    <tr>
+      <td style="padding: 10px 14px; font-weight: bold; color: #374151;">Descrição:</td>
+      <td style="padding: 10px 14px; color: #111827;">{app.description or '—'}</td>
+    </tr>
+  </table>
+  <a href="https://app.strongx.it.ao/admin/applications"
+     style="display: inline-block; background: #6366f1; color: white; padding: 10px 22px;
+            text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 14px;">
+    Rever Aplicação
+  </a>
+  <p style="color: #9ca3af; font-size: 12px; margin-top: 24px;">StrongX — Plataforma de Mensagens</p>
+</div>
+"""
+    for admin in admins:
+        try:
+            await _send_email(admin.email, subject, html_body)
+        except Exception as exc:
+            logger.error(f"Failed to notify admin {admin.email} about new application: {exc}")
 
 
 async def list_applications(db: AsyncSession, user_id: uuid.UUID) -> list[Application]:

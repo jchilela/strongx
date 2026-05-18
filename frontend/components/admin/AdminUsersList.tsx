@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Users, Search, ChevronRight, Key,
   DollarSign, Shield, ShieldOff, RefreshCw, PlusCircle, KeyRound, Wallet,
-  TrendingUp,
+  TrendingUp, Crown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -341,6 +341,16 @@ export function AdminUsersList() {
     onError: () => toast.error('Failed to update user'),
   });
 
+  const { mutate: toggleAdmin } = useMutation({
+    mutationFn: ({ id, isAdmin }: { id: string; isAdmin: boolean }) =>
+      adminApi.updateUser(id, { isAdmin }),
+    onSuccess: (_, { isAdmin }) => {
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      toast.success(isAdmin ? 'User promoted to Admin' : 'Admin role removed');
+    },
+    onError: () => toast.error('Failed to update admin role'),
+  });
+
   const filtered = users?.filter((u) => {
     const q = search.toLowerCase();
     return (
@@ -454,7 +464,7 @@ export function AdminUsersList() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          title={user.isActive ? 'Deactivate' : 'Activate'}
+                          title={user.isActive ? 'Deactivate user' : 'Activate user'}
                           onClick={() => toggleActive({ id: user.id, isActive: !user.isActive })}
                         >
                           {user.isActive ? (
@@ -462,6 +472,19 @@ export function AdminUsersList() {
                           ) : (
                             <Shield className="h-4 w-4 text-green-500" />
                           )}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          title={user.isAdmin ? 'Remove admin role' : 'Promote to admin'}
+                          onClick={() => {
+                            const action = user.isAdmin ? 'remove admin role from' : 'promote to admin';
+                            if (window.confirm(`Are you sure you want to ${action} ${user.name}?`)) {
+                              toggleAdmin({ id: user.id, isAdmin: !user.isAdmin });
+                            }
+                          }}
+                        >
+                          <Crown className={`h-4 w-4 ${user.isAdmin ? 'text-amber-500' : 'text-gray-300'}`} />
                         </Button>
                         <Button
                           variant="ghost"

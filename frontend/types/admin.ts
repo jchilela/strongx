@@ -28,6 +28,7 @@ export interface AdminApplication {
 
 export interface UpdateUserRequest {
   isActive?: boolean;
+  isAdmin?: boolean;
   smsCost?: number | null;
   emailCost?: number | null;
   whatsappCost?: number | null;

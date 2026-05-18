@@ -105,7 +105,22 @@ async def get_current_api_key_user(
             await db.flush()
 
             user = await get_user_by_id(db, api_key.user_id)
-            if user and user.is_active:
-                return user
+            if not user or not user.is_active:
+                continue
+
+            # If the key is tied to an application, require it to be approved
+            if api_key.application_id:
+                from app.modules.applications.models import Application
+                from sqlalchemy import select as sa_select
+                app_result = await db.execute(
+                    sa_select(Application).where(Application.id == api_key.application_id)
+                )
+                app = app_result.scalar_one_or_none()
+                if not app or app.status != "approved":
+                    raise UnauthorizedError(
+                        "Application not approved. Awaiting admin approval before API access is granted."
+                    )
+
+            return user
 
     raise UnauthorizedError("Invalid API key")
