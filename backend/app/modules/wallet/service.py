@@ -10,39 +10,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.exceptions import ExternalServiceError, NotFoundError
-from app.core.redis import get_redis
-from app.core.security import generate_merchant_transaction_id
 from app.modules.wallet.models import Payment, Wallet, WalletTransaction
 
 TERMINAL_STATUSES = {"paid", "failed", "cancelled", "expired"}
 
 
-async def _get_appypay_token() -> str:
-    """Get/cache AppyPay OAuth2 access token."""
-    redis = await get_redis()
-    cached = await redis.get("appypay:token")
-    if cached:
-        return cached
-
-    async with httpx.AsyncClient(timeout=15) as client:
-        resp = await client.post(
-            settings.APPYPAY_TOKEN_URL,
-            data={
-                "grant_type": "client_credentials",
-                "client_id": settings.APPYPAY_CLIENT_ID,
-                "client_secret": settings.APPYPAY_CLIENT_SECRET,
-                "resource": settings.APPYPAY_RESOURCE,
-            },
-        )
-        if resp.status_code != 200:
-            raise ExternalServiceError(f"AppyPay token error: {resp.text}")
-
-        data = resp.json()
-        token = data["access_token"]
-        expires_in = int(data.get("expires_in", 3600))
-        ttl = max(expires_in - 60, 60)  # Cache 60s before expiry
-        await redis.setex("appypay:token", ttl, token)
-        return token
+def _strongpay_headers() -> dict:
+    return {
+        "Authorization": f"Bearer {settings.STRONGPAY_API_KEY}",
+        "Content-Type": "application/json",
+    }
 
 
 async def get_wallet(db: AsyncSession, user_id: uuid.UUID) -> Wallet:
@@ -62,48 +39,33 @@ async def initiate_topup(
     name: str,
     email: Optional[str],
 ) -> Payment:
-    token = await _get_appypay_token()
+    # Map frontend method name to StrongPay method name
+    sp_method = "ref" if method == "reference" else "gpo"
 
-    merchant_transaction_id = generate_merchant_transaction_id()
-
-    payment_method_id = (
-        settings.APPYPAY_PAYMENT_METHOD_GPO
-        if method == "gpo"
-        else settings.APPYPAY_PAYMENT_METHOD_REFERENCE
-    )
-
-    callback_url = (
-        f"{settings.API_URL}/webhooks/appypay?token={settings.APPYPAY_WEBHOOK_TOKEN}"
-    )
-    payload = {
-        "merchantTransactionId": merchant_transaction_id,
+    payload: dict = {
+        "method": sp_method,
         "amount": float(amount),
         "currency": "AOA",
-        "description": "StrongX Wallet Top-up",
-        "paymentMethod": payment_method_id,
-        "callbackUrl": callback_url,
-        "customer": {
-            "name": name,
-            "phone": phone,
-        },
+        "description": "Wallet TopUp",
     }
-    if email:
-        payload["customer"]["email"] = email
+    if sp_method == "gpo":
+        payload["customer_name"] = name
+        payload["customer_phone"] = phone
+        if email:
+            payload["customer_email"] = email
 
     async with httpx.AsyncClient(timeout=30) as client:
         resp = await client.post(
-            f"{settings.APPYPAY_BASE_URL}/v2.0/charges",
+            f"{settings.STRONGPAY_BASE_URL}/api/v1/payments",
             json=payload,
-            headers={"Authorization": f"Bearer {token}"},
+            headers=_strongpay_headers(),
         )
 
-    data = resp.json()
-    response_status = data.get("responseStatus", {})
-    if not response_status.get("successful"):
-        logger.error(f"AppyPay charge error: {resp.status_code} {resp.text}")
-        raise ExternalServiceError(f"AppyPay error: {resp.text}")
+    if resp.status_code not in (200, 201):
+        logger.error(f"StrongPay charge error: {resp.status_code} {resp.text}")
+        raise ExternalServiceError(f"Payment provider error: {resp.text}")
 
-    ref_data = response_status.get("reference") or {}
+    data = resp.json()
 
     # Create wallet_transaction (pending)
     txn = WalletTransaction(
@@ -111,7 +73,6 @@ async def initiate_topup(
         type="credit",
         amount=amount,
         description=f"Wallet top-up via {method.upper()}",
-        reference=merchant_transaction_id,
         status="pending",
     )
     db.add(txn)
@@ -122,18 +83,22 @@ async def initiate_topup(
     payment = Payment(
         user_id=user_id,
         wallet_transaction_id=txn.id,
-        merchant_transaction_id=merchant_transaction_id,
+        merchant_transaction_id=data.get("id", str(uuid.uuid4()))[:15],
         method=method,
-        status="pending",
+        status=data.get("status", "pending"),
         amount=amount,
         customer_name=name,
         customer_email=email,
         customer_phone=phone,
-        payment_reference=ref_data.get("referenceNumber"),
-        entity_number=ref_data.get("entity"),
-        expires_at=_parse_date(ref_data.get("dueDate")),
-        provider_id=data.get("id"),
-        transaction_id=data.get("id"),
+        payment_reference=data.get("payment_reference"),
+        entity_number=data.get("entity_number"),
+        expires_at=_parse_date(data.get("expires_at")),
+        provider_id=data.get("id"),           # StrongPay internal UUID — used for status polling
+        transaction_id=data.get("transaction_id"),  # AppyPay charge ID
+        provider_successful=data.get("provider_successful"),
+        provider_status=data.get("provider_status"),
+        provider_code=data.get("provider_code"),
+        provider_message=data.get("provider_message"),
     )
     db.add(payment)
     await db.flush()
@@ -172,7 +137,7 @@ async def list_transactions(
 
 
 async def sync_pending_payments(db: AsyncSession, user_id: Optional[uuid.UUID] = None) -> int:
-    """Poll AppyPay for all pending payments and apply status updates. Returns count synced."""
+    """Poll StrongPay for all pending payments and apply status updates. Returns count synced."""
     q = select(Payment).where(Payment.status == "pending")
     if user_id:
         q = q.where(Payment.user_id == user_id)
@@ -181,79 +146,71 @@ async def sync_pending_payments(db: AsyncSession, user_id: Optional[uuid.UUID] =
     if not pending:
         return 0
 
-    token = await _get_appypay_token()
     synced = 0
 
     async with httpx.AsyncClient(timeout=30) as client:
         for payment in pending:
             if not payment.provider_id:
                 continue
+
             resp = await client.get(
-                f"{settings.APPYPAY_BASE_URL}/v2.0/charges/{payment.provider_id}",
-                headers={"Authorization": f"Bearer {token}"},
+                f"{settings.STRONGPAY_BASE_URL}/api/v1/payments/{payment.provider_id}",
+                headers=_strongpay_headers(),
             )
             if resp.status_code != 200:
-                logger.warning(f"AppyPay poll {payment.provider_id}: {resp.status_code}")
+                logger.warning(f"StrongPay poll {payment.provider_id}: {resp.status_code}")
                 continue
 
             data = resp.json()
-            # GET /v2.0/charges/{id} wraps the charge under "payment" key
-            payment_data = data.get("payment", data)
-            provider_status = payment_data.get("status", "")
+            new_status = data.get("status", "pending").lower()
 
-            _status_map = {
-                "success": "paid",
-                "pending": "pending",
-                "expired": "expired",
-                "cancelled": "cancelled",
-                "canceled": "cancelled",
-                "failed": "failed",
-            }
-            new_status = _status_map.get(provider_status.lower(), "pending")
+            # Normalise any provider-specific aliases
+            _alias = {"success": "paid", "canceled": "cancelled"}
+            new_status = _alias.get(new_status, new_status)
 
             if new_status == payment.status:
                 continue
 
             payment.status = new_status
             payment.provider_successful = (new_status == "paid")
-            payment.provider_status = provider_status
+            payment.provider_status = new_status
 
             if new_status == "paid":
                 payment.paid_at = datetime.now(timezone.utc)
-
-                wallet_result = await db.execute(
-                    select(Wallet).where(Wallet.user_id == payment.user_id).with_for_update()
-                )
-                wallet = wallet_result.scalar_one_or_none()
-                if wallet:
-                    wallet.balance += payment.amount
-
-                if payment.wallet_transaction_id:
-                    txn_result = await db.execute(
-                        select(WalletTransaction).where(
-                            WalletTransaction.id == payment.wallet_transaction_id
-                        ).with_for_update()
-                    )
-                    txn = txn_result.scalar_one_or_none()
-                    if txn:
-                        txn.status = "completed"
+                await _credit_wallet(db, payment)
 
             elif new_status in TERMINAL_STATUSES:
-                if payment.wallet_transaction_id:
-                    txn_result = await db.execute(
-                        select(WalletTransaction).where(
-                            WalletTransaction.id == payment.wallet_transaction_id
-                        ).with_for_update()
-                    )
-                    txn = txn_result.scalar_one_or_none()
-                    if txn:
-                        txn.status = new_status
+                await _mark_transaction(db, payment, new_status)
 
             synced += 1
-            logger.info(f"AppyPay poll: payment {payment.id} → {new_status}")
+            logger.info(f"StrongPay poll: payment {payment.id} → {new_status}")
 
     await db.flush()
     return synced
+
+
+async def _credit_wallet(db: AsyncSession, payment: Payment) -> None:
+    wallet_result = await db.execute(
+        select(Wallet).where(Wallet.user_id == payment.user_id).with_for_update()
+    )
+    wallet = wallet_result.scalar_one_or_none()
+    if wallet:
+        wallet.balance += payment.amount
+
+    await _mark_transaction(db, payment, "completed")
+
+
+async def _mark_transaction(db: AsyncSession, payment: Payment, status: str) -> None:
+    if not payment.wallet_transaction_id:
+        return
+    txn_result = await db.execute(
+        select(WalletTransaction)
+        .where(WalletTransaction.id == payment.wallet_transaction_id)
+        .with_for_update()
+    )
+    txn = txn_result.scalar_one_or_none()
+    if txn:
+        txn.status = status
 
 
 async def list_payments(

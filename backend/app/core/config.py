@@ -39,17 +39,10 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str = ""
     SMTP_FROM_NAME: str = "StrongX"
 
-    # AppyPay
-    APPYPAY_TOKEN_URL: str = (
-        "https://login.microsoftonline.com/auth.appypay.co.ao/oauth2/token"
-    )
-    APPYPAY_CLIENT_ID: str = ""
-    APPYPAY_CLIENT_SECRET: str = ""
-    APPYPAY_RESOURCE: str = ""
-    APPYPAY_BASE_URL: str = "https://gwy-api.appypay.co.ao"
-    APPYPAY_PAYMENT_METHOD_GPO: str = ""
-    APPYPAY_PAYMENT_METHOD_REFERENCE: str = ""
-    APPYPAY_WEBHOOK_TOKEN: str = ""
+    # StrongPay
+    STRONGPAY_BASE_URL: str = "http://strongpay.strongbox.ao"
+    STRONGPAY_API_KEY: str = ""
+    STRONGPAY_WEBHOOK_SECRET: str = ""
 
     # Pricing (AOA)
     SMS_COST_PER_UNIT: float = 5.00

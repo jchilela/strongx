@@ -2,9 +2,17 @@ from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.modules.webhooks import appypay, sendgrid, twilio
+from app.modules.webhooks import appypay, sendgrid, strongpay, twilio
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
+
+
+@router.post("/strongpay")
+async def strongpay_webhook(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    return await strongpay.handle_strongpay_webhook(request, db)
 
 
 @router.post("/appypay")
