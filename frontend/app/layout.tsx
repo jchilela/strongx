@@ -15,6 +15,10 @@ export const metadata: Metadata = {
   description:
     'StrongX is a powerful SaaS notification platform for SMS, Email, and WhatsApp messaging in Angola.',
   keywords: ['SMS', 'Email', 'WhatsApp', 'Notifications', 'Angola', 'AOA'],
+  icons: {
+    icon: '/logo.png',
+    apple: '/logo.png',
+  },
 };
 
 export default function RootLayout({
