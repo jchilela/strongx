@@ -41,6 +41,7 @@ export function TopUpModal({ open, onOpenChange }: TopUpModalProps) {
     resolver: zodResolver(topUpSchema),
     defaultValues: {
       paymentMethod: 'reference',
+      phone: '+244',
     },
   });
 

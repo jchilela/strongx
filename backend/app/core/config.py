@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     SMTP_FROM_NAME: str = "StrongX"
 
     # StrongPay
-    STRONGPAY_BASE_URL: str = "http://strongpay.strongbox.ao"
+    STRONGPAY_BASE_URL: str = "https://strongpay.strongbox.ao"
     STRONGPAY_API_KEY: str = ""
     STRONGPAY_WEBHOOK_SECRET: str = ""
 
