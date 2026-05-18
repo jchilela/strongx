@@ -81,8 +81,13 @@ async def list_users(
     _: User = Depends(get_current_admin_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    users = await service.list_users(db)
-    return {"success": True, "data": [_serialize_user(u) for u in users]}
+    rows = await service.list_users(db)
+    data = []
+    for user, wallet in rows:
+        d = _serialize_user(user)
+        d["walletBalance"] = float(wallet.balance) if wallet else 0.0
+        data.append(d)
+    return {"success": True, "data": data}
 
 
 @router.get("/users/{user_id}")

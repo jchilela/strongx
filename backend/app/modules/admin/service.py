@@ -14,9 +14,13 @@ from app.core.exceptions import NotFoundError
 from app.core.security import hash_password
 
 
-async def list_users(db: AsyncSession) -> list[User]:
-    result = await db.execute(select(User).order_by(User.created_at.desc()))
-    return list(result.scalars().all())
+async def list_users(db: AsyncSession) -> list[tuple]:
+    result = await db.execute(
+        select(User, Wallet)
+        .outerjoin(Wallet, Wallet.user_id == User.id)
+        .order_by(User.created_at.desc())
+    )
+    return list(result.all())
 
 
 async def get_user(db: AsyncSession, user_id: uuid.UUID) -> User:

@@ -127,8 +127,7 @@ export const createApplicationSchema = z.object({
 export const topUpSchema = z.object({
   amount: z
     .number({ invalid_type_error: 'Amount must be a number' })
-    .min(100, 'Minimum top-up amount is AOA 100')
-    .max(1000000, 'Maximum top-up amount is AOA 1,000,000'),
+    .min(150, 'Minimum top-up amount is AOA 150'),
   paymentMethod: z.enum(['gpo', 'reference'], {
     required_error: 'Please select a payment method',
   }),

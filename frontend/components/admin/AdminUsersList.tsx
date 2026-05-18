@@ -426,6 +426,7 @@ export function AdminUsersList() {
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">User</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Wallet</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Pricing (AOA)</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Joined</th>
@@ -441,6 +442,9 @@ export function AdminUsersList() {
                         <p className="text-xs text-gray-400">{user.email}</p>
                         <p className="text-xs text-gray-400">{user.phone}</p>
                       </div>
+                    </td>
+                    <td className="px-4 py-3 text-sm font-medium text-green-700">
+                      {formatCurrency(user.walletBalance ?? 0)}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex flex-col gap-1">

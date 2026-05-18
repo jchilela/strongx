@@ -10,6 +10,7 @@ export interface AdminUser {
   smsCost: number | null;
   emailCost: number | null;
   whatsappCost: number | null;
+  walletBalance: number;
   createdAt: string;
 }
 

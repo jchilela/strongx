@@ -62,7 +62,12 @@ export function TopUpModal({ open, onOpenChange }: TopUpModalProps) {
   const onSubmit = (data: TopUpSchema) => {
     topUp(data, {
       onSuccess: (result) => {
-        setTopUpResult(result);
+        if (result.paymentMethod === 'gpo') {
+          toast.success('Payment successful!', { description: 'Your wallet has been credited.' });
+          handleClose();
+        } else {
+          setTopUpResult(result);
+        }
       },
     });
   };
@@ -142,29 +147,11 @@ export function TopUpModal({ open, onOpenChange }: TopUpModalProps) {
             <Input
               id="amount"
               type="number"
-              min={100}
-              step={100}
+              min={150}
               placeholder="1000"
               error={errors.amount?.message}
               {...register('amount', { valueAsNumber: true })}
             />
-            <div className="flex gap-2">
-              {[500, 1000, 5000, 10000].map((preset) => (
-                <button
-                  key={preset}
-                  type="button"
-                  onClick={() => setValue('amount', preset)}
-                  className={cn(
-                    'flex-1 py-1 text-xs rounded-md border transition-colors',
-                    amount === preset
-                      ? 'bg-[#6366f1] text-white border-[#6366f1]'
-                      : 'border-gray-200 text-gray-600 hover:border-[#6366f1] hover:text-[#6366f1]'
-                  )}
-                >
-                  {preset.toLocaleString()}
-                </button>
-              ))}
-            </div>
           </div>
 
           {/* Payment Method */}
