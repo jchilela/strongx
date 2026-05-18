@@ -49,8 +49,9 @@ async def initiate_topup(
         "description": "Wallet TopUp",
     }
     if sp_method == "gpo":
+        # GPO provider requires digits only — strip leading +
         payload["customer_name"] = name
-        payload["customer_phone"] = phone
+        payload["customer_phone"] = phone.lstrip("+") if phone else phone
         if email:
             payload["customer_email"] = email
 
