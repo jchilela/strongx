@@ -105,8 +105,8 @@ export const translations = {
       noTransactionsDesc: 'Carregue a sua carteira para começar. As transações aparecerão aqui.',
     },
     developer: { title: 'Developer' },
-    email: { title: 'Email', comingSoon: 'Brevemente' },
-    whatsapp: { title: 'WhatsApp', comingSoon: 'Brevemente' },
+    email: { title: 'Email', comingSoon: 'Brevemente', comingSoonDesc: 'O envio de emails estará disponível em breve. Por enquanto, utilize o canal SMS para as suas campanhas de mensagens.' },
+    whatsapp: { title: 'WhatsApp', comingSoon: 'Brevemente', comingSoonDesc: 'O canal WhatsApp estará disponível em breve. Por enquanto, utilize o canal SMS para as suas campanhas de mensagens.' },
     settings: {
       title: 'Definições',
       profile: 'Perfil',
@@ -315,8 +315,8 @@ export const translations = {
       noTransactionsDesc: 'Top up your wallet to get started. Your transactions will appear here.',
     },
     developer: { title: 'Developer' },
-    email: { title: 'Email', comingSoon: 'Coming Soon' },
-    whatsapp: { title: 'WhatsApp', comingSoon: 'Coming Soon' },
+    email: { title: 'Email', comingSoon: 'Coming Soon', comingSoonDesc: 'Email sending will be available soon. In the meantime, use the SMS channel for your messaging campaigns.' },
+    whatsapp: { title: 'WhatsApp', comingSoon: 'Coming Soon', comingSoonDesc: 'The WhatsApp channel will be available soon. In the meantime, use the SMS channel for your messaging campaigns.' },
     settings: {
       title: 'Settings',
       profile: 'Profile',

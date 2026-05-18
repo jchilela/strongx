@@ -1,21 +1,27 @@
-import type { Metadata } from 'next';
-import { DashboardShell } from '@/components/layout/DashboardShell';
-import { SendWhatsAppForm } from '@/components/whatsapp/SendWhatsAppForm';
-import { WhatsAppHistoryTable } from '@/components/whatsapp/WhatsAppHistoryTable';
+'use client';
 
-export const metadata: Metadata = {
-  title: 'WhatsApp',
-};
+import { MessageCircle, Clock } from 'lucide-react';
+import { DashboardShell } from '@/components/layout/DashboardShell';
+import { useLang } from '@/lib/lang';
 
 export default function WhatsAppPage() {
+  const { t } = useLang();
+
   return (
-    <DashboardShell title="WhatsApp">
-      <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
-        <div className="xl:col-span-2">
-          <SendWhatsAppForm />
-        </div>
-        <div className="xl:col-span-3">
-          <WhatsAppHistoryTable />
+    <DashboardShell title={t.whatsapp.title}>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center max-w-md">
+          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-green-100 mx-auto mb-6">
+            <MessageCircle className="h-10 w-10 text-green-500" />
+          </div>
+          <div className="inline-flex items-center gap-2 bg-amber-100 text-amber-700 text-sm font-semibold px-4 py-1.5 rounded-full mb-4">
+            <Clock className="h-4 w-4" />
+            {t.whatsapp.comingSoon}
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mt-2 mb-3">{t.whatsapp.title}</h2>
+          <p className="text-gray-500 text-sm leading-relaxed">
+            {t.whatsapp.comingSoonDesc}
+          </p>
         </div>
       </div>
     </DashboardShell>

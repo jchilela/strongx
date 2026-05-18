@@ -1,33 +1,27 @@
 'use client';
 
+import { Mail, Clock } from 'lucide-react';
 import { DashboardShell } from '@/components/layout/DashboardShell';
-import { SendEmailForm } from '@/components/email/SendEmailForm';
-import { BulkEmailForm } from '@/components/email/BulkEmailForm';
-import { EmailHistoryTable } from '@/components/email/EmailHistoryTable';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { useLang } from '@/lib/lang';
 
 export default function EmailPage() {
+  const { t } = useLang();
+
   return (
-    <DashboardShell title="Email">
-      <div className="space-y-6">
-        <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
-          <div className="xl:col-span-2">
-            <Tabs defaultValue="single">
-              <TabsList className="w-full mb-4">
-                <TabsTrigger value="single" className="flex-1">Single Send</TabsTrigger>
-                <TabsTrigger value="bulk" className="flex-1">Bulk Send</TabsTrigger>
-              </TabsList>
-              <TabsContent value="single">
-                <SendEmailForm />
-              </TabsContent>
-              <TabsContent value="bulk">
-                <BulkEmailForm />
-              </TabsContent>
-            </Tabs>
+    <DashboardShell title={t.email.title}>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center max-w-md">
+          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-orange-100 mx-auto mb-6">
+            <Mail className="h-10 w-10 text-orange-500" />
           </div>
-          <div className="xl:col-span-3">
-            <EmailHistoryTable />
+          <div className="inline-flex items-center gap-2 bg-amber-100 text-amber-700 text-sm font-semibold px-4 py-1.5 rounded-full mb-4">
+            <Clock className="h-4 w-4" />
+            {t.email.comingSoon}
           </div>
+          <h2 className="text-2xl font-bold text-gray-900 mt-2 mb-3">{t.email.title}</h2>
+          <p className="text-gray-500 text-sm leading-relaxed">
+            {t.email.comingSoonDesc}
+          </p>
         </div>
       </div>
     </DashboardShell>
