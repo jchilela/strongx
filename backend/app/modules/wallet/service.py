@@ -68,25 +68,29 @@ async def initiate_topup(
 
     data = resp.json()
 
-    # Create wallet_transaction (pending)
+    # GPO payments are synchronous — treat as paid immediately if provider confirms success
+    gpo_paid = sp_method == "gpo" and (
+        data.get("status") == "paid" or data.get("provider_successful") is True
+    )
+    final_status = "paid" if gpo_paid else data.get("status", "pending")
+
     txn = WalletTransaction(
         user_id=user_id,
         type="credit",
         amount=amount,
         description=f"Wallet top-up via {method.upper()}",
-        status="pending",
+        status="completed" if gpo_paid else "pending",
     )
     db.add(txn)
     await db.flush()
     await db.refresh(txn)
 
-    # Create payment record
     payment = Payment(
         user_id=user_id,
         wallet_transaction_id=txn.id,
         merchant_transaction_id=data.get("id", str(uuid.uuid4()))[:15],
         method=method,
-        status=data.get("status", "pending"),
+        status=final_status,
         amount=amount,
         customer_name=name,
         customer_email=email,
@@ -94,16 +98,26 @@ async def initiate_topup(
         payment_reference=data.get("payment_reference"),
         entity_number=data.get("entity_number"),
         expires_at=_parse_date(data.get("expires_at")),
-        provider_id=data.get("id"),           # StrongPay internal UUID — used for status polling
-        transaction_id=data.get("transaction_id"),  # AppyPay charge ID
+        provider_id=data.get("id"),
+        transaction_id=data.get("transaction_id"),
         provider_successful=data.get("provider_successful"),
         provider_status=data.get("provider_status"),
         provider_code=data.get("provider_code"),
         provider_message=data.get("provider_message"),
+        paid_at=datetime.now(timezone.utc) if gpo_paid else None,
     )
     db.add(payment)
     await db.flush()
     await db.refresh(payment)
+
+    if gpo_paid:
+        wallet_result = await db.execute(
+            select(Wallet).where(Wallet.user_id == user_id).with_for_update()
+        )
+        wallet = wallet_result.scalar_one_or_none()
+        if wallet:
+            wallet.balance += amount
+        logger.info(f"GPO payment {payment.id} confirmed paid — wallet credited {amount} AOA")
 
     return payment
 
