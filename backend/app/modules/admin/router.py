@@ -39,6 +39,7 @@ def _serialize_app(app) -> dict:
         "status": app.status,
         "rejectedReason": app.rejected_reason,
         "isActive": app.is_active,
+        "telcosmsApiKey": app.telcosms_api_key,
         "createdAt": app.created_at.isoformat(),
     }
 
@@ -61,6 +62,10 @@ class UpdateUserRequest(BaseModel):
     smsCost: Optional[Decimal] = None
     emailCost: Optional[Decimal] = None
     whatsappCost: Optional[Decimal] = None
+
+
+class ApproveRequest(BaseModel):
+    telcosmsApiKey: Optional[str] = None
 
 
 class RejectRequest(BaseModel):
@@ -148,10 +153,11 @@ async def list_applications(
 @router.post("/applications/{app_id}/approve")
 async def approve_application(
     app_id: uuid.UUID,
+    data: ApproveRequest,
     _: User = Depends(get_current_admin_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    app = await service.approve_application(db, app_id)
+    app = await service.approve_application(db, app_id, telcosms_api_key=data.telcosmsApiKey)
     await db.commit()
     return {"success": True, "data": _serialize_app(app)}
 

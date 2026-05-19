@@ -22,6 +22,7 @@ export interface AdminApplication {
   description?: string;
   status: 'pending' | 'approved' | 'rejected';
   rejectedReason?: string;
+  telcosmsApiKey?: string;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;

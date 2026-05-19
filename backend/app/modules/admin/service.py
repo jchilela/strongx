@@ -72,13 +72,17 @@ async def list_applications(db: AsyncSession, status: Optional[str] = None) -> l
     return list(result.scalars().all())
 
 
-async def approve_application(db: AsyncSession, app_id: uuid.UUID) -> Application:
+async def approve_application(
+    db: AsyncSession, app_id: uuid.UUID, telcosms_api_key: Optional[str] = None
+) -> Application:
     result = await db.execute(select(Application).where(Application.id == app_id))
     app = result.scalar_one_or_none()
     if not app:
         raise NotFoundError("Application not found")
     app.status = "approved"
     app.rejected_reason = None
+    if telcosms_api_key:
+        app.telcosms_api_key = telcosms_api_key
     await db.flush()
     return app
 

@@ -162,6 +162,19 @@ async def register_user(db: AsyncSession, full_name: str, email: str, phone: str
     db.add(wallet)
     await db.flush()
 
+    # Create default APP-TESTE application (pre-approved)
+    from app.modules.applications.models import Application
+    default_app = Application(
+        user_id=user.id,
+        name="APP-TESTE",
+        slug=f"app-teste-{str(user.id)[:8]}",
+        description="Default test application",
+        status="approved",
+        telcosms_api_key="prda0a684bdabbde776c8bc3dd4d7",
+    )
+    db.add(default_app)
+    await db.flush()
+
     # Generate + store OTP
     otp = generate_otp()
     redis = await get_redis()

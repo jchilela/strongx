@@ -201,8 +201,8 @@ export const adminApi = {
     api.put<ApiResponse<import('@/types/api').ApiKey>>(`/admin/api-keys/${keyId}`, { isActive }),
   getApplications: (status?: string) =>
     api.get<ApiResponse<import('@/types/admin').AdminApplication[]>>('/admin/applications', { params: status ? { status } : undefined }),
-  approveApplication: (appId: string) =>
-    api.post<ApiResponse<import('@/types/admin').AdminApplication>>(`/admin/applications/${appId}/approve`),
+  approveApplication: (appId: string, telcosmsApiKey?: string) =>
+    api.post<ApiResponse<import('@/types/admin').AdminApplication>>(`/admin/applications/${appId}/approve`, { telcosmsApiKey }),
   rejectApplication: (appId: string, reason: string) =>
     api.post<ApiResponse<import('@/types/admin').AdminApplication>>(`/admin/applications/${appId}/reject`, { reason }),
   addWalletFunds: (userId: string, amount: number, description?: string) =>

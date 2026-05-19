@@ -20,6 +20,7 @@ async def send_sms_task(ctx: dict[str, Any], message_id: str, user_id: str, to: 
     """ARQ worker task: send SMS via telcosms.co.ao and update message status."""
     from app.core.database import AsyncSessionLocal
     from app.modules.sms.models import Message
+    from app.modules.applications.models import Application
     from sqlalchemy import select
 
     logger.info(f"[SMS Worker] Sending to={to} message_id={message_id}")
@@ -28,13 +29,31 @@ async def send_sms_task(ctx: dict[str, Any], message_id: str, user_id: str, to: 
     provider_message_id = None
     error_message = None
 
+    # Resolve which TelcoSMS API key to use for this message
+    telcosms_key = settings.TELCOSMS_API_KEY
+    async with AsyncSessionLocal() as db:
+        try:
+            msg_result = await db.execute(
+                select(Message).where(Message.id == uuid.UUID(message_id))
+            )
+            msg_row = msg_result.scalar_one_or_none()
+            if msg_row and msg_row.application_id:
+                app_result = await db.execute(
+                    select(Application).where(Application.id == msg_row.application_id)
+                )
+                app = app_result.scalar_one_or_none()
+                if app and app.telcosms_api_key:
+                    telcosms_key = app.telcosms_api_key
+        except Exception as exc:
+            logger.error(f"[SMS Worker] Could not resolve app key for message_id={message_id}: {exc}")
+
     try:
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.post(
                 settings.TELCOSMS_URL,
                 json={
                     "message": {
-                        "api_key_app": settings.TELCOSMS_API_KEY,
+                        "api_key_app": telcosms_key,
                         "phone_number": to,
                         "message_body": message,
                     }
@@ -58,7 +77,6 @@ async def send_sms_task(ctx: dict[str, Any], message_id: str, user_id: str, to: 
     # Update DB
     async with AsyncSessionLocal() as db:
         try:
-            # Ensure all models are imported so SQLAlchemy can resolve relationships
             result = await db.execute(
                 select(Message).where(Message.id == uuid.UUID(message_id))
             )
