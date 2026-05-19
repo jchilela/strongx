@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { AppWindow, Check, X, ChevronRight, KeyRound } from 'lucide-react';
+import { AppWindow, Check, X, ChevronRight, KeyRound, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -14,12 +14,50 @@ import { Textarea } from '@/components/ui/textarea';
 import { PageLoader } from '@/components/shared/LoadingSpinner';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { adminApi } from '@/lib/api';
+import { useAuth } from '@/hooks/useAuth';
 import type { AdminApplication } from '@/types/admin';
 import { formatDate } from '@/lib/utils';
 import { toast } from 'sonner';
 import Link from 'next/link';
 
 type StatusFilter = 'all' | 'pending' | 'approved' | 'rejected';
+
+function ConfirmDialog({
+  open,
+  onOpenChange,
+  title,
+  description,
+  confirmLabel,
+  confirmVariant,
+  onConfirm,
+  isPending,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  description: string;
+  confirmLabel: string;
+  confirmVariant?: 'default' | 'destructive';
+  onConfirm: () => void;
+  isPending?: boolean;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-gray-600 py-2">{description}</p>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button variant={confirmVariant ?? 'default'} disabled={isPending} onClick={onConfirm}>
+            {isPending ? 'Please wait...' : confirmLabel}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 function ApproveModal({
   app,
@@ -34,7 +72,7 @@ function ApproveModal({
   onConfirm: (telcosmsApiKey: string) => void;
   isPending: boolean;
 }) {
-  const [apiKey, setApiKey] = useState('');
+  const [apiKey, setApiKey] = useState(app.telcosmsApiKey ?? '');
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -45,6 +83,12 @@ function ApproveModal({
             Approve &quot;{app.name}&quot;
           </DialogTitle>
         </DialogHeader>
+        {(app.ownerName || app.ownerEmail) && (
+          <p className="text-xs text-gray-500 -mt-2">
+            Owner: <span className="font-medium text-gray-700">{app.ownerName}</span>
+            {app.ownerEmail && <span className="text-gray-400"> · {app.ownerEmail}</span>}
+          </p>
+        )}
         <div className="space-y-1.5 py-2">
           <Label htmlFor="api-key">TelcoSMS API Key</Label>
           <Input
@@ -90,6 +134,12 @@ function RejectModal({
         <DialogHeader>
           <DialogTitle>Reject &quot;{app.name}&quot;</DialogTitle>
         </DialogHeader>
+        {(app.ownerName || app.ownerEmail) && (
+          <p className="text-xs text-gray-500 -mt-2">
+            Owner: <span className="font-medium text-gray-700">{app.ownerName}</span>
+            {app.ownerEmail && <span className="text-gray-400"> · {app.ownerEmail}</span>}
+          </p>
+        )}
         <div className="space-y-1.5 py-2">
           <Label htmlFor="reason">Reason (shown to user)</Label>
           <Textarea
@@ -115,6 +165,53 @@ function RejectModal({
   );
 }
 
+function EditKeyModal({
+  app,
+  open,
+  onOpenChange,
+  onConfirm,
+  isPending,
+}: {
+  app: AdminApplication;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onConfirm: (key: string) => void;
+  isPending: boolean;
+}) {
+  const [apiKey, setApiKey] = useState(app.telcosmsApiKey ?? '');
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Pencil className="h-4 w-4 text-indigo-600" />
+            Edit TelcoSMS Key — &quot;{app.name}&quot;
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-1.5 py-2">
+          <Label htmlFor="edit-api-key">TelcoSMS API Key</Label>
+          <Input
+            id="edit-api-key"
+            placeholder="Enter TelcoSMS API key"
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+          />
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button
+            disabled={!apiKey.trim() || isPending}
+            onClick={() => onConfirm(apiKey.trim())}
+          >
+            {isPending ? 'Saving...' : 'Save'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function AppStatusBadge({ status }: { status: AdminApplication['status'] }) {
   const map = {
     pending: { label: 'Pending', variant: 'warning' },
@@ -127,9 +224,14 @@ function AppStatusBadge({ status }: { status: AdminApplication['status'] }) {
 
 export function AdminApplicationsList() {
   const queryClient = useQueryClient();
+  const { user: currentUser } = useAuth();
+  const isSuperAdmin = currentUser?.isSuperAdmin ?? false;
+
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('pending');
   const [approveTarget, setApproveTarget] = useState<AdminApplication | null>(null);
   const [rejectTarget, setRejectTarget] = useState<AdminApplication | null>(null);
+  const [editKeyTarget, setEditKeyTarget] = useState<AdminApplication | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<AdminApplication | null>(null);
 
   const { data: apps, isLoading } = useQuery({
     queryKey: ['admin-applications', statusFilter],
@@ -159,6 +261,27 @@ export function AdminApplicationsList() {
       setRejectTarget(null);
     },
     onError: () => toast.error('Failed to reject application'),
+  });
+
+  const { mutate: updateKey, isPending: isUpdatingKey } = useMutation({
+    mutationFn: ({ appId, telcosmsApiKey }: { appId: string; telcosmsApiKey: string }) =>
+      adminApi.updateApplicationKey(appId, telcosmsApiKey),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-applications'] });
+      toast.success('TelcoSMS key updated');
+      setEditKeyTarget(null);
+    },
+    onError: () => toast.error('Failed to update key'),
+  });
+
+  const { mutate: deleteApp, isPending: isDeleting } = useMutation({
+    mutationFn: (appId: string) => adminApi.deleteApplication(appId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-applications'] });
+      toast.success('Application deleted');
+      setDeleteTarget(null);
+    },
+    onError: () => toast.error('Failed to delete application'),
   });
 
   const filters: { label: string; value: StatusFilter }[] = [
@@ -213,6 +336,7 @@ export function AdminApplicationsList() {
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Application</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Owner</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">TelcoSMS Key</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Submitted</th>
@@ -230,6 +354,16 @@ export function AdminApplicationsList() {
                       )}
                       {app.rejectedReason && (
                         <p className="text-xs text-red-500 mt-0.5">Reason: {app.rejectedReason}</p>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      {app.ownerName ? (
+                        <div>
+                          <p className="text-sm text-gray-800 font-medium">{app.ownerName}</p>
+                          <p className="text-xs text-gray-400">{app.ownerEmail}</p>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-400">—</span>
                       )}
                     </td>
                     <td className="px-4 py-3">
@@ -274,6 +408,24 @@ export function AdminApplicationsList() {
                             <X className="h-4 w-4 text-red-400" />
                           </Button>
                         )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          title="Edit TelcoSMS key"
+                          onClick={() => setEditKeyTarget(app)}
+                        >
+                          <Pencil className="h-4 w-4 text-indigo-400" />
+                        </Button>
+                        {isSuperAdmin && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            title="Delete application"
+                            onClick={() => setDeleteTarget(app)}
+                          >
+                            <Trash2 className="h-4 w-4 text-red-500" />
+                          </Button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -300,6 +452,27 @@ export function AdminApplicationsList() {
           onOpenChange={(open) => { if (!open) setRejectTarget(null); }}
           onConfirm={(reason) => reject({ appId: rejectTarget.id, reason })}
           isPending={isRejecting}
+        />
+      )}
+      {editKeyTarget && (
+        <EditKeyModal
+          app={editKeyTarget}
+          open={!!editKeyTarget}
+          onOpenChange={(open) => { if (!open) setEditKeyTarget(null); }}
+          onConfirm={(key) => updateKey({ appId: editKeyTarget.id, telcosmsApiKey: key })}
+          isPending={isUpdatingKey}
+        />
+      )}
+      {deleteTarget && (
+        <ConfirmDialog
+          open={!!deleteTarget}
+          onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+          title="Delete application permanently?"
+          description={`This will permanently delete "${deleteTarget.name}" and all associated data. This cannot be undone.`}
+          confirmLabel="Delete permanently"
+          confirmVariant="destructive"
+          isPending={isDeleting}
+          onConfirm={() => deleteApp(deleteTarget.id)}
         />
       )}
     </div>

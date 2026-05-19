@@ -354,9 +354,15 @@ curl -X POST https://api.strongx.it.ao/auth/login \
 curl -X POST https://api.strongx.it.ao/v1/sms/send \
   -H "Authorization: Bearer strx_YOUR_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"to": "244923456789", "message": "Hello from StrongX!"}'
-# Response: {"message_id": "msg_abc123", "status": "queued"}
+  -d '{
+    "to": "244923456789",
+    "message": "Hello from StrongX!",
+    "applicationId": "YOUR_APPLICATION_UUID"
+  }'
+# Response: {"success": true, "data": {"messageId": "...", "status": "queued"}}
 ```
+
+The `applicationId` field is optional. If omitted, the application bound to the API key is used automatically. Each application has its own TelcoSMS API key — the worker resolves the correct key at send time. Both `applicationId` (camelCase) and `application_id` (snake_case) are accepted.
 
 #### Send Email
 
@@ -368,7 +374,8 @@ curl -X POST https://api.strongx.it.ao/v1/email/send \
     "to": "recipient@example.com",
     "subject": "Hello",
     "body_html": "<p>Hello from <strong>StrongX</strong>!</p>",
-    "body_text": "Hello from StrongX!"
+    "body_text": "Hello from StrongX!",
+    "applicationId": "YOUR_APPLICATION_UUID"
   }'
 ```
 
@@ -378,7 +385,11 @@ curl -X POST https://api.strongx.it.ao/v1/email/send \
 curl -X POST https://api.strongx.it.ao/v1/whatsapp/send \
   -H "Authorization: Bearer strx_YOUR_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"to": "+244923456789", "message": "Hello via WhatsApp!"}'
+  -d '{
+    "to": "+244923456789",
+    "message": "Hello via WhatsApp!",
+    "applicationId": "YOUR_APPLICATION_UUID"
+  }'
 ```
 
 #### Wallet Balance
@@ -409,6 +420,18 @@ curl -X POST https://api.strongx.it.ao/developer/keys \
 # Response: {"key": "strx_...", "name": "Production Key", "created_at": "..."}
 ```
 
+### Per-Application TelcoSMS Keys
+
+Each application on the platform has its own TelcoSMS API key set by the admin at approval time. When a message is sent:
+
+1. If `applicationId` is provided in the request body → that application's key is used.
+2. If `applicationId` is omitted → the key bound to the authenticating API key's application is used.
+3. If neither resolves → falls back to the global `TELCOSMS_API_KEY` setting.
+
+Resolution is logged in the `sms_send_logs` table and visible in the admin panel at `/admin/sms-logs`.
+
+Every new user automatically gets a default **APP-TESTE** application (pre-approved, using the platform's default TelcoSMS key) so they can start sending immediately.
+
 ### Notification Pricing
 
 | Channel  | Cost per unit |
@@ -418,6 +441,25 @@ curl -X POST https://api.strongx.it.ao/developer/keys \
 | WhatsApp | 8.00 AOA     |
 
 Costs are deducted from the user's wallet in real time. If balance is insufficient, the API returns `402 Payment Required`.
+
+### Admin Panel
+
+The admin panel is accessible at `/admin` for users with `isAdmin = true`. Super admins (`isSuperAdmin = true`) additionally have delete access.
+
+| Page | URL | Description |
+|---|---|---|
+| Users | `/admin/users` | List all users, manage roles, pricing, wallet funds, API keys, reset passwords |
+| Applications | `/admin/applications` | Review, approve (with TelcoSMS key), reject, edit keys for all applications |
+| Earnings | `/admin/earnings` | Revenue charts (daily/monthly/yearly) and top users |
+| SMS Logs | `/admin/sms-logs` | Per-message log of which TelcoSMS key was used and how it was resolved |
+
+#### Roles
+
+| Role | `isAdmin` | `isSuperAdmin` | Capabilities |
+|---|---|---|---|
+| User | false | false | Send messages, manage own applications and API keys |
+| Admin | true | false | Full admin panel: approve/reject apps, manage users, view earnings and SMS logs |
+| Super Admin | true | true | All admin capabilities + delete users and applications |
 
 ---
 

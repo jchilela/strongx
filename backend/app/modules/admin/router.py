@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
-from app.modules.auth.dependencies import get_current_admin_user
+from app.modules.auth.dependencies import get_current_admin_user, get_current_super_admin_user
 from app.modules.users.models import User
 from app.modules.admin import service
 
@@ -20,6 +20,7 @@ def _serialize_user(u: User) -> dict:
         "phone": u.phone,
         "isActive": u.is_active,
         "isAdmin": u.is_admin,
+        "isSuperAdmin": u.is_super_admin,
         "emailVerified": u.email_verified,
         "phoneVerified": u.phone_verified,
         "smsCost": float(u.sms_cost) if u.sms_cost is not None else None,
@@ -29,7 +30,7 @@ def _serialize_user(u: User) -> dict:
     }
 
 
-def _serialize_app(app) -> dict:
+def _serialize_app(app, owner=None) -> dict:
     return {
         "id": str(app.id),
         "userId": str(app.user_id),
@@ -40,6 +41,8 @@ def _serialize_app(app) -> dict:
         "rejectedReason": app.rejected_reason,
         "isActive": app.is_active,
         "telcosmsApiKey": app.telcosms_api_key,
+        "ownerName": owner.full_name if owner else None,
+        "ownerEmail": owner.email if owner else None,
         "createdAt": app.created_at.isoformat(),
     }
 
@@ -59,9 +62,14 @@ def _serialize_key(k) -> dict:
 class UpdateUserRequest(BaseModel):
     isActive: Optional[bool] = None
     isAdmin: Optional[bool] = None
+    isSuperAdmin: Optional[bool] = None
     smsCost: Optional[Decimal] = None
     emailCost: Optional[Decimal] = None
     whatsappCost: Optional[Decimal] = None
+
+
+class UpdateKeyRequest(BaseModel):
+    telcosmsApiKey: str
 
 
 class ApproveRequest(BaseModel):
@@ -146,8 +154,8 @@ async def list_applications(
     _: User = Depends(get_current_admin_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    apps = await service.list_applications(db, status=status)
-    return {"success": True, "data": [_serialize_app(a) for a in apps]}
+    rows = await service.list_applications(db, status=status)
+    return {"success": True, "data": [_serialize_app(app, owner) for app, owner in rows]}
 
 
 @router.post("/applications/{app_id}/approve")
@@ -213,3 +221,47 @@ async def reset_user_password(
     new_password = await service.reset_user_password(db, user_id)
     await db.commit()
     return {"success": True, "data": {"newPassword": new_password}}
+
+
+@router.patch("/applications/{app_id}/key")
+async def update_application_key(
+    app_id: uuid.UUID,
+    data: UpdateKeyRequest,
+    _: User = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    app = await service.update_application_telcosms_key(db, app_id, data.telcosmsApiKey)
+    await db.commit()
+    return {"success": True, "data": _serialize_app(app)}
+
+
+@router.delete("/applications/{app_id}")
+async def delete_application(
+    app_id: uuid.UUID,
+    _: User = Depends(get_current_super_admin_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    await service.delete_application(db, app_id)
+    await db.commit()
+    return {"success": True}
+
+
+@router.delete("/users/{user_id}")
+async def delete_user(
+    user_id: uuid.UUID,
+    _: User = Depends(get_current_super_admin_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    await service.delete_user(db, user_id)
+    await db.commit()
+    return {"success": True}
+
+
+@router.get("/sms-send-logs")
+async def get_sms_send_logs(
+    limit: int = Query(50, ge=1, le=200),
+    _: User = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    rows = await service.get_sms_send_logs(db, limit)
+    return {"success": True, "data": rows}

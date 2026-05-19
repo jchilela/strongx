@@ -213,4 +213,12 @@ export const adminApi = {
     api.get<ApiResponse<{ totalWalletBalance: number; totalEarned: number; usersWithFunds: number }>>('/admin/stats/wallets'),
   resetUserPassword: (userId: string) =>
     api.post<ApiResponse<{ newPassword: string }>>(`/admin/users/${userId}/reset-password`),
+  updateApplicationKey: (appId: string, telcosmsApiKey: string) =>
+    api.patch<ApiResponse<import('@/types/admin').AdminApplication>>(`/admin/applications/${appId}/key`, { telcosmsApiKey }),
+  deleteApplication: (appId: string) =>
+    api.delete<ApiResponse<null>>(`/admin/applications/${appId}`),
+  deleteUser: (userId: string) =>
+    api.delete<ApiResponse<null>>(`/admin/users/${userId}`),
+  getSmsSendLogs: (limit = 50) =>
+    api.get<ApiResponse<unknown[]>>('/admin/sms-send-logs', { params: { limit } }),
 };

@@ -24,6 +24,7 @@ class User(Base):
     email_verified: Mapped[bool] = mapped_column(Boolean, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_super_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     sms_cost: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 4), nullable=True)
     email_cost: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 4), nullable=True)
     whatsapp_cost: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 4), nullable=True)

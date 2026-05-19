@@ -36,6 +36,7 @@ async def update_user(db: AsyncSession, user_id: uuid.UUID, updates: dict) -> Us
     field_map = {
         "isActive": "is_active",
         "isAdmin": "is_admin",
+        "isSuperAdmin": "is_super_admin",
         "smsCost": "sms_cost",
         "emailCost": "email_cost",
         "whatsappCost": "whatsapp_cost",
@@ -64,12 +65,16 @@ async def toggle_api_key(db: AsyncSession, key_id: uuid.UUID, is_active: bool) -
     return key
 
 
-async def list_applications(db: AsyncSession, status: Optional[str] = None) -> list[Application]:
-    q = select(Application).order_by(Application.created_at.desc())
+async def list_applications(db: AsyncSession, status: Optional[str] = None) -> list[tuple]:
+    q = (
+        select(Application, User)
+        .join(User, User.id == Application.user_id)
+        .order_by(Application.created_at.desc())
+    )
     if status:
         q = q.where(Application.status == status)
     result = await db.execute(q)
-    return list(result.scalars().all())
+    return list(result.all())
 
 
 async def approve_application(
@@ -96,6 +101,36 @@ async def reject_application(db: AsyncSession, app_id: uuid.UUID, reason: str) -
     app.rejected_reason = reason
     await db.flush()
     return app
+
+
+async def update_application_telcosms_key(
+    db: AsyncSession, app_id: uuid.UUID, telcosms_api_key: str
+) -> Application:
+    result = await db.execute(select(Application).where(Application.id == app_id))
+    app = result.scalar_one_or_none()
+    if not app:
+        raise NotFoundError("Application not found")
+    app.telcosms_api_key = telcosms_api_key
+    await db.flush()
+    return app
+
+
+async def delete_application(db: AsyncSession, app_id: uuid.UUID) -> None:
+    result = await db.execute(select(Application).where(Application.id == app_id))
+    app = result.scalar_one_or_none()
+    if not app:
+        raise NotFoundError("Application not found")
+    await db.delete(app)
+    await db.flush()
+
+
+async def delete_user(db: AsyncSession, user_id: uuid.UUID) -> None:
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise NotFoundError("User not found")
+    await db.delete(user)
+    await db.flush()
 
 
 async def admin_add_wallet_funds(
@@ -208,6 +243,44 @@ async def get_wallet_summary(db: AsyncSession) -> dict:
         "totalEarned": total_earned,
         "usersWithFunds": users_with_funds,
     }
+
+
+async def get_sms_send_logs(db: AsyncSession, limit: int = 50) -> list[dict]:
+    result = await db.execute(text("""
+        SELECT
+            sl.id::text,
+            sl.message_id::text,
+            sl.application_id::text,
+            a.name as app_name,
+            sl.telcosms_key_preview,
+            sl.resolved_from,
+            sl.created_at,
+            m.to_address,
+            m.status as message_status,
+            u.email as user_email
+        FROM sms_send_logs sl
+        LEFT JOIN applications a ON a.id = sl.application_id
+        LEFT JOIN messages m ON m.id = sl.message_id
+        LEFT JOIN users u ON u.id = m.user_id
+        ORDER BY sl.created_at DESC
+        LIMIT :limit
+    """), {"limit": limit})
+    rows = result.fetchall()
+    return [
+        {
+            "id": r.id,
+            "messageId": r.message_id,
+            "applicationId": r.application_id,
+            "appName": r.app_name,
+            "telcosmsKeyPreview": r.telcosms_key_preview,
+            "resolvedFrom": r.resolved_from,
+            "createdAt": r.created_at.isoformat() if r.created_at else None,
+            "to": r.to_address,
+            "messageStatus": r.message_status,
+            "userEmail": r.user_email,
+        }
+        for r in rows
+    ]
 
 
 async def reset_user_password(db: AsyncSession, user_id: uuid.UUID) -> str:

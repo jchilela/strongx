@@ -7,9 +7,11 @@ from pydantic import BaseModel, Field
 
 
 class SmsSendRequest(BaseModel):
+    model_config = {"populate_by_name": True}
+
     to: str = Field(..., description="Recipient phone, e.g. 244XXXXXXXXX")
     message: str = Field(..., min_length=1, max_length=1600)
-    application_id: Optional[uuid.UUID] = None
+    application_id: Optional[uuid.UUID] = Field(None, alias="applicationId")
 
 
 class SmsSendResponse(BaseModel):

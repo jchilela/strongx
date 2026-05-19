@@ -21,7 +21,7 @@ async def send_sms_task(ctx: dict[str, Any], message_id: str, user_id: str, to: 
     from app.core.database import AsyncSessionLocal
     from app.modules.sms.models import Message
     from app.modules.applications.models import Application
-    from sqlalchemy import select
+    from sqlalchemy import select, text
 
     logger.info(f"[SMS Worker] Sending to={to} message_id={message_id}")
 
@@ -31,21 +31,49 @@ async def send_sms_task(ctx: dict[str, Any], message_id: str, user_id: str, to: 
 
     # Resolve which TelcoSMS API key to use for this message
     telcosms_key = settings.TELCOSMS_API_KEY
+    resolved_from = "global"
+    resolved_application_id = None
+    log_message_id = uuid.UUID(message_id)
+
     async with AsyncSessionLocal() as db:
         try:
             msg_result = await db.execute(
-                select(Message).where(Message.id == uuid.UUID(message_id))
+                select(Message).where(Message.id == log_message_id)
             )
             msg_row = msg_result.scalar_one_or_none()
             if msg_row and msg_row.application_id:
+                resolved_application_id = msg_row.application_id
                 app_result = await db.execute(
                     select(Application).where(Application.id == msg_row.application_id)
                 )
                 app = app_result.scalar_one_or_none()
                 if app and app.telcosms_api_key:
                     telcosms_key = app.telcosms_api_key
+                    resolved_from = "app_key"
+                    logger.info(
+                        f"[SMS Worker] Using app key from app={app.name} (id={app.id}) "
+                        f"key_preview={telcosms_key[:10]}... for message_id={message_id}"
+                    )
+                else:
+                    resolved_from = "global"
+                    logger.warning(
+                        f"[SMS Worker] App id={msg_row.application_id} has no telcosms_key — "
+                        f"falling back to global key for message_id={message_id}"
+                    )
+            else:
+                resolved_from = "global" if telcosms_key else "none"
+                logger.info(
+                    f"[SMS Worker] No application_id on message — "
+                    f"using global key for message_id={message_id}"
+                )
         except Exception as exc:
             logger.error(f"[SMS Worker] Could not resolve app key for message_id={message_id}: {exc}")
+
+    logger.info(
+        f"[SMS Worker] Key resolution: message_id={message_id} "
+        f"resolved_from={resolved_from} application_id={resolved_application_id} "
+        f"key_preview={telcosms_key[:10] if telcosms_key else 'NONE'}..."
+    )
 
     try:
         async with httpx.AsyncClient(timeout=15) as client:
@@ -74,18 +102,35 @@ async def send_sms_task(ctx: dict[str, Any], message_id: str, user_id: str, to: 
         error_message = str(exc)[:500]
         logger.exception(f"[SMS Worker] Exception for message_id={message_id}: {exc}")
 
-    # Update DB
+    # Update DB + write send log
     async with AsyncSessionLocal() as db:
         try:
             result = await db.execute(
-                select(Message).where(Message.id == uuid.UUID(message_id))
+                select(Message).where(Message.id == log_message_id)
             )
             msg = result.scalar_one_or_none()
             if msg:
                 msg.status = status_value
                 msg.provider_message_id = provider_message_id
                 msg.error_message = error_message
-                await db.commit()
+
+            # Write to sms_send_logs
+            await db.execute(
+                text("""
+                    INSERT INTO sms_send_logs
+                        (message_id, application_id, telcosms_key_preview, resolved_from)
+                    VALUES
+                        (:message_id, :application_id, :key_preview, :resolved_from)
+                """),
+                {
+                    "message_id": log_message_id,
+                    "application_id": resolved_application_id,
+                    "key_preview": telcosms_key[:15] if telcosms_key else None,
+                    "resolved_from": resolved_from,
+                },
+            )
+
+            await db.commit()
         except Exception as exc:
             logger.error(f"[SMS Worker] DB update failed: {exc}")
             await db.rollback()

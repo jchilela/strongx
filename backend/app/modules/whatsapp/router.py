@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.modules.auth.dependencies import get_current_active_user, get_current_api_key_user
+from app.modules.auth.dependencies import get_current_active_user, get_api_key_context, ApiKeyContext
 from app.modules.sms.router import _serialize_message
 from app.modules.sms.service import list_messages
 from app.modules.users.models import User
@@ -17,15 +17,15 @@ router = APIRouter(prefix="/v1/whatsapp", tags=["whatsapp"])
 @router.post("/send", status_code=status.HTTP_202_ACCEPTED)
 async def send_whatsapp(
     data: WhatsAppSendRequest,
-    current_user: User = Depends(get_current_api_key_user),
+    ctx: ApiKeyContext = Depends(get_api_key_context),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     msg = await service.send_whatsapp(
         db=db,
-        user_id=current_user.id,
+        user_id=ctx.user.id,
         to=data.to,
         message=data.message,
-        application_id=data.application_id,
+        application_id=data.application_id or ctx.application_id,
     )
     return {"success": True, "data": {"messageId": str(msg.id), "status": msg.status}}
 

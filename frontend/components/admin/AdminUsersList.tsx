@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Users, Search, ChevronRight, Key,
   DollarSign, Shield, ShieldOff, RefreshCw, PlusCircle, KeyRound, Wallet,
-  TrendingUp, Crown,
+  TrendingUp, Crown, Trash2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,11 +18,49 @@ import { Switch } from '@/components/ui/switch';
 import { PageLoader } from '@/components/shared/LoadingSpinner';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { adminApi } from '@/lib/api';
+import { useAuth } from '@/hooks/useAuth';
 import type { AdminUser } from '@/types/admin';
 import type { ApiKey } from '@/types/api';
 import { formatDate, formatCurrency } from '@/lib/utils';
 import { toast } from 'sonner';
 import Link from 'next/link';
+
+function ConfirmDialog({
+  open,
+  onOpenChange,
+  title,
+  description,
+  confirmLabel,
+  confirmVariant,
+  onConfirm,
+  isPending,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  description: string;
+  confirmLabel: string;
+  confirmVariant?: 'default' | 'destructive';
+  onConfirm: () => void;
+  isPending?: boolean;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-gray-600 py-2">{description}</p>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button variant={confirmVariant ?? 'default'} disabled={isPending} onClick={onConfirm}>
+            {isPending ? 'Please wait...' : confirmLabel}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 function PricingModal({
   user,
@@ -308,11 +346,20 @@ function ApiKeysModal({
 
 export function AdminUsersList() {
   const queryClient = useQueryClient();
+  const { user: currentUser } = useAuth();
+  const isSuperAdmin = currentUser?.isSuperAdmin ?? false;
+
   const [search, setSearch] = useState('');
   const [pricingUser, setPricingUser] = useState<AdminUser | null>(null);
   const [keysUser, setKeysUser] = useState<AdminUser | null>(null);
   const [fundsUser, setFundsUser] = useState<AdminUser | null>(null);
   const [resetUser, setResetUser] = useState<AdminUser | null>(null);
+
+  // Confirmation dialog state
+  const [confirmToggleActive, setConfirmToggleActive] = useState<AdminUser | null>(null);
+  const [confirmToggleAdmin, setConfirmToggleAdmin] = useState<AdminUser | null>(null);
+  const [confirmToggleSuperAdmin, setConfirmToggleSuperAdmin] = useState<AdminUser | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<AdminUser | null>(null);
 
   const { data: walletSummary } = useQuery({
     queryKey: ['admin-wallet-summary'],
@@ -331,24 +378,47 @@ export function AdminUsersList() {
     },
   });
 
-  const { mutate: toggleActive } = useMutation({
+  const { mutate: toggleActive, isPending: isTogglingActive } = useMutation({
     mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
       adminApi.updateUser(id, { isActive }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       toast.success('User updated');
+      setConfirmToggleActive(null);
     },
     onError: () => toast.error('Failed to update user'),
   });
 
-  const { mutate: toggleAdmin } = useMutation({
+  const { mutate: toggleAdmin, isPending: isTogglingAdmin } = useMutation({
     mutationFn: ({ id, isAdmin }: { id: string; isAdmin: boolean }) =>
       adminApi.updateUser(id, { isAdmin }),
     onSuccess: (_, { isAdmin }) => {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       toast.success(isAdmin ? 'User promoted to Admin' : 'Admin role removed');
+      setConfirmToggleAdmin(null);
     },
     onError: () => toast.error('Failed to update admin role'),
+  });
+
+  const { mutate: toggleSuperAdmin, isPending: isTogglingSuperAdmin } = useMutation({
+    mutationFn: ({ id, isSuperAdmin }: { id: string; isSuperAdmin: boolean }) =>
+      adminApi.updateUser(id, { isSuperAdmin }),
+    onSuccess: (_, { isSuperAdmin }) => {
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      toast.success(isSuperAdmin ? 'User promoted to Super Admin' : 'Super Admin role removed');
+      setConfirmToggleSuperAdmin(null);
+    },
+    onError: () => toast.error('Failed to update super admin role'),
+  });
+
+  const { mutate: deleteUser, isPending: isDeleting } = useMutation({
+    mutationFn: (id: string) => adminApi.deleteUser(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      toast.success('User deleted');
+      setConfirmDelete(null);
+    },
+    onError: () => toast.error('Failed to delete user'),
   });
 
   const filtered = users?.filter((u) => {
@@ -438,7 +508,12 @@ export function AdminUsersList() {
                   <tr key={user.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-3">
                       <div>
-                        <p className="font-medium text-gray-900">{user.name}</p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="font-medium text-gray-900">{user.name}</p>
+                          {user.isSuperAdmin && (
+                            <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-medium">Super Admin</span>
+                          )}
+                        </div>
                         <p className="text-xs text-gray-400">{user.email}</p>
                         <p className="text-xs text-gray-400">{user.phone}</p>
                       </div>
@@ -469,7 +544,7 @@ export function AdminUsersList() {
                           variant="ghost"
                           size="sm"
                           title={user.isActive ? 'Deactivate user' : 'Activate user'}
-                          onClick={() => toggleActive({ id: user.id, isActive: !user.isActive })}
+                          onClick={() => setConfirmToggleActive(user)}
                         >
                           {user.isActive ? (
                             <ShieldOff className="h-4 w-4 text-red-400" />
@@ -481,15 +556,20 @@ export function AdminUsersList() {
                           variant="ghost"
                           size="sm"
                           title={user.isAdmin ? 'Remove admin role' : 'Promote to admin'}
-                          onClick={() => {
-                            const action = user.isAdmin ? 'remove admin role from' : 'promote to admin';
-                            if (window.confirm(`Are you sure you want to ${action} ${user.name}?`)) {
-                              toggleAdmin({ id: user.id, isAdmin: !user.isAdmin });
-                            }
-                          }}
+                          onClick={() => setConfirmToggleAdmin(user)}
                         >
                           <Crown className={`h-4 w-4 ${user.isAdmin ? 'text-amber-500' : 'text-gray-300'}`} />
                         </Button>
+                        {isSuperAdmin && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            title={user.isSuperAdmin ? 'Remove super admin role' : 'Promote to super admin'}
+                            onClick={() => setConfirmToggleSuperAdmin(user)}
+                          >
+                            <Crown className={`h-4 w-4 ${user.isSuperAdmin ? 'text-purple-500' : 'text-gray-200'}`} />
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="sm"
@@ -522,6 +602,16 @@ export function AdminUsersList() {
                         >
                           <KeyRound className="h-4 w-4 text-amber-500" />
                         </Button>
+                        {isSuperAdmin && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            title="Delete user"
+                            onClick={() => setConfirmDelete(user)}
+                          >
+                            <Trash2 className="h-4 w-4 text-red-500" />
+                          </Button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -532,6 +622,7 @@ export function AdminUsersList() {
         </div>
       )}
 
+      {/* Modals */}
       {pricingUser && (
         <PricingModal
           user={pricingUser}
@@ -558,6 +649,66 @@ export function AdminUsersList() {
           user={resetUser}
           open={!!resetUser}
           onOpenChange={(open) => { if (!open) setResetUser(null); }}
+        />
+      )}
+
+      {/* Confirmation dialogs */}
+      {confirmToggleActive && (
+        <ConfirmDialog
+          open={!!confirmToggleActive}
+          onOpenChange={(open) => { if (!open) setConfirmToggleActive(null); }}
+          title={confirmToggleActive.isActive ? 'Deactivate user?' : 'Activate user?'}
+          description={
+            confirmToggleActive.isActive
+              ? `${confirmToggleActive.name} will no longer be able to log in.`
+              : `${confirmToggleActive.name} will be able to log in again.`
+          }
+          confirmLabel={confirmToggleActive.isActive ? 'Deactivate' : 'Activate'}
+          confirmVariant={confirmToggleActive.isActive ? 'destructive' : 'default'}
+          isPending={isTogglingActive}
+          onConfirm={() => toggleActive({ id: confirmToggleActive.id, isActive: !confirmToggleActive.isActive })}
+        />
+      )}
+      {confirmToggleAdmin && (
+        <ConfirmDialog
+          open={!!confirmToggleAdmin}
+          onOpenChange={(open) => { if (!open) setConfirmToggleAdmin(null); }}
+          title={confirmToggleAdmin.isAdmin ? 'Remove admin role?' : 'Promote to admin?'}
+          description={
+            confirmToggleAdmin.isAdmin
+              ? `${confirmToggleAdmin.name} will lose access to the admin panel.`
+              : `${confirmToggleAdmin.name} will gain access to the admin panel.`
+          }
+          confirmLabel={confirmToggleAdmin.isAdmin ? 'Remove role' : 'Promote'}
+          isPending={isTogglingAdmin}
+          onConfirm={() => toggleAdmin({ id: confirmToggleAdmin.id, isAdmin: !confirmToggleAdmin.isAdmin })}
+        />
+      )}
+      {confirmToggleSuperAdmin && (
+        <ConfirmDialog
+          open={!!confirmToggleSuperAdmin}
+          onOpenChange={(open) => { if (!open) setConfirmToggleSuperAdmin(null); }}
+          title={confirmToggleSuperAdmin.isSuperAdmin ? 'Remove super admin role?' : 'Promote to super admin?'}
+          description={
+            confirmToggleSuperAdmin.isSuperAdmin
+              ? `${confirmToggleSuperAdmin.name} will lose super admin privileges (delete access).`
+              : `${confirmToggleSuperAdmin.name} will gain full super admin privileges including the ability to delete items.`
+          }
+          confirmLabel={confirmToggleSuperAdmin.isSuperAdmin ? 'Remove role' : 'Promote'}
+          isPending={isTogglingSuperAdmin}
+          onConfirm={() => toggleSuperAdmin({ id: confirmToggleSuperAdmin.id, isSuperAdmin: !confirmToggleSuperAdmin.isSuperAdmin })}
+        />
+      )}
+      {confirmDelete && (
+        <ConfirmDialog
+          open={!!confirmDelete}
+          onOpenChange={(open) => { if (!open) setConfirmDelete(null); }}
+          title="Delete user permanently?"
+          description={`This will permanently delete ${confirmDelete.name} (${confirmDelete.email}) and all their data. This cannot be undone.`}
+          confirmLabel="Delete permanently"
+          confirmVariant="destructive"
+          isPending={isDeleting}
+          onConfirm={() => deleteUser(confirmDelete.id)}
         />
       )}
     </div>

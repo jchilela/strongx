@@ -119,5 +119,7 @@ async def get_me(current_user: User = Depends(get_current_active_user)) -> dict:
             "phone": current_user.phone,
             "phoneVerified": current_user.phone_verified,
             "emailVerified": current_user.email_verified,
+            "isAdmin": current_user.is_admin,
+            "isSuperAdmin": current_user.is_super_admin,
         },
     }

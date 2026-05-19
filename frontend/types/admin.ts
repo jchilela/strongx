@@ -5,6 +5,7 @@ export interface AdminUser {
   phone: string;
   isActive: boolean;
   isAdmin: boolean;
+  isSuperAdmin: boolean;
   emailVerified: boolean;
   phoneVerified: boolean;
   smsCost: number | null;
@@ -24,13 +25,15 @@ export interface AdminApplication {
   rejectedReason?: string;
   telcosmsApiKey?: string;
   isActive: boolean;
+  ownerName?: string;
+  ownerEmail?: string;
   createdAt: string;
-  updatedAt: string;
 }
 
 export interface UpdateUserRequest {
   isActive?: boolean;
   isAdmin?: boolean;
+  isSuperAdmin?: boolean;
   smsCost?: number | null;
   emailCost?: number | null;
   whatsappCost?: number | null;

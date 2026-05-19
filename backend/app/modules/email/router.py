@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.modules.auth.dependencies import get_current_active_user, get_current_api_key_user
+from app.modules.auth.dependencies import get_current_active_user, get_api_key_context, ApiKeyContext
 from app.modules.email import service
 from app.modules.email.schemas import EmailBulkSendRequest, EmailSendRequest
 from app.modules.sms.router import _serialize_message
@@ -17,17 +17,17 @@ router = APIRouter(prefix="/v1/email", tags=["email"])
 @router.post("/send", status_code=status.HTTP_202_ACCEPTED)
 async def send_email(
     data: EmailSendRequest,
-    current_user: User = Depends(get_current_api_key_user),
+    ctx: ApiKeyContext = Depends(get_api_key_context),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     msg = await service.send_email(
         db=db,
-        user_id=current_user.id,
+        user_id=ctx.user.id,
         to=str(data.to),
         subject=data.subject,
         body_html=data.body_html,
         body_text=data.body_text,
-        application_id=data.application_id,
+        application_id=data.application_id or ctx.application_id,
     )
     return {"success": True, "data": {"messageId": str(msg.id), "status": msg.status}}
 
@@ -35,17 +35,17 @@ async def send_email(
 @router.post("/send-bulk", status_code=status.HTTP_202_ACCEPTED)
 async def send_bulk_email(
     data: EmailBulkSendRequest,
-    current_user: User = Depends(get_current_api_key_user),
+    ctx: ApiKeyContext = Depends(get_api_key_context),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     messages, total_cost = await service.send_bulk_email(
         db=db,
-        user_id=current_user.id,
+        user_id=ctx.user.id,
         recipients=[str(r) for r in data.recipients],
         subject=data.subject,
         body_html=data.body_html,
         body_text=data.body_text,
-        application_id=data.application_id,
+        application_id=data.application_id or ctx.application_id,
     )
     return {
         "success": True,

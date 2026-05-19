@@ -16,6 +16,7 @@ import {
   X,
   ShieldCheck,
   TrendingUp,
+  FileText,
 } from 'lucide-react';
 import { cn, getInitials } from '@/lib/utils';
 import { clearAuth, getStoredUser } from '@/lib/auth';
@@ -142,6 +143,16 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                   >
                     <TrendingUp className="h-4 w-4 flex-shrink-0" />
                     <span>{t.nav.earnings}</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/admin/sms-logs"
+                    onClick={onClose}
+                    className={cn('sidebar-item', pathname.startsWith('/admin/sms-logs') && 'active')}
+                  >
+                    <FileText className="h-4 w-4 flex-shrink-0" />
+                    <span>SMS Logs</span>
                   </Link>
                 </li>
               </>

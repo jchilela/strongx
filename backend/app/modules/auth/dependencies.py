@@ -1,4 +1,5 @@
 import uuid
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -17,6 +18,12 @@ from app.modules.users.models import User
 from app.modules.users.service import get_user_by_id
 
 bearer_scheme = HTTPBearer(auto_error=False)
+
+
+@dataclass
+class ApiKeyContext:
+    user: User
+    application_id: Optional[uuid.UUID]
 
 
 async def _get_current_user_from_token(
@@ -63,6 +70,15 @@ async def get_current_admin_user(
     if not current_user.is_admin:
         from app.core.exceptions import ForbiddenError
         raise ForbiddenError("Admin access required")
+    return current_user
+
+
+async def get_current_super_admin_user(
+    current_user: User = Depends(get_current_active_user),
+) -> User:
+    if not current_user.is_super_admin:
+        from app.core.exceptions import ForbiddenError
+        raise ForbiddenError("Super admin access required")
     return current_user
 
 
@@ -122,5 +138,63 @@ async def get_current_api_key_user(
                     )
 
             return user
+
+    raise UnauthorizedError("Invalid API key")
+
+
+async def get_api_key_context(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme),
+    db: AsyncSession = Depends(get_db),
+) -> ApiKeyContext:
+    """Like get_current_api_key_user but also returns the application_id from the API key."""
+    if credentials is None:
+        raise UnauthorizedError("Missing authorization token")
+
+    token = credentials.credentials
+
+    # JWT auth — no application context
+    if not token.startswith("strx_"):
+        try:
+            payload = decode_token(token)
+            if payload.get("type") == "access":
+                user_id = uuid.UUID(payload["sub"])
+                user = await get_user_by_id(db, user_id)
+                if user and user.is_active:
+                    return ApiKeyContext(user=user, application_id=None)
+        except JWTError:
+            pass
+
+    # API key auth — capture application_id
+    prefix = token[:13]
+    result = await db.execute(
+        select(ApiKey).where(
+            ApiKey.key_prefix == prefix,
+            ApiKey.is_active == True,  # noqa: E712
+        )
+    )
+    api_keys = list(result.scalars().all())
+
+    for api_key in api_keys:
+        if verify_api_key(token, api_key.key_hash):
+            api_key.last_used_at = datetime.now(timezone.utc)
+            await db.flush()
+
+            user = await get_user_by_id(db, api_key.user_id)
+            if not user or not user.is_active:
+                continue
+
+            if api_key.application_id:
+                from app.modules.applications.models import Application
+                from sqlalchemy import select as sa_select
+                app_result = await db.execute(
+                    sa_select(Application).where(Application.id == api_key.application_id)
+                )
+                app = app_result.scalar_one_or_none()
+                if not app or app.status != "approved":
+                    raise UnauthorizedError(
+                        "Application not approved. Awaiting admin approval before API access is granted."
+                    )
+
+            return ApiKeyContext(user=user, application_id=api_key.application_id)
 
     raise UnauthorizedError("Invalid API key")
