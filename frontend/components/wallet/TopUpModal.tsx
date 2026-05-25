@@ -19,6 +19,7 @@ import type { TopUpResponse } from '@/types/wallet';
 import { formatCurrency, copyToClipboard } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { useLang } from '@/lib/lang';
 
 interface TopUpModalProps {
   open: boolean;
@@ -29,6 +30,7 @@ export function TopUpModal({ open, onOpenChange }: TopUpModalProps) {
   const [topUpResult, setTopUpResult] = useState<TopUpResponse | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const { mutate: topUp, isPending } = useTopUp();
+  const { t } = useLang();
 
   const {
     register,
@@ -52,10 +54,10 @@ export function TopUpModal({ open, onOpenChange }: TopUpModalProps) {
     try {
       await copyToClipboard(text);
       setCopiedField(field);
-      toast.success('Copied to clipboard!');
+      toast.success(t.topUp.copied);
       setTimeout(() => setCopiedField(null), 2000);
     } catch {
-      toast.error('Failed to copy');
+      toast.error(t.topUp.copyFailed);
     }
   };
 
@@ -63,7 +65,7 @@ export function TopUpModal({ open, onOpenChange }: TopUpModalProps) {
     topUp(data, {
       onSuccess: (result) => {
         if (result.paymentMethod === 'gpo') {
-          toast.success('Payment successful!', { description: 'Your wallet has been credited.' });
+          toast.success(t.topUp.paymentSuccess, { description: t.topUp.walletCredited });
           handleClose();
         } else {
           setTopUpResult(result);
@@ -86,20 +88,20 @@ export function TopUpModal({ open, onOpenChange }: TopUpModalProps) {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <CheckCircle className="h-5 w-5 text-green-600" />
-              Payment Reference Created
+              {t.topUp.referenceCreated}
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4">
             <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-sm text-green-700">
-              Use the following details to pay at any Multicaixa ATM or via the Multicaixa Express app.
+              {t.topUp.useAtm}
             </div>
 
             <div className="space-y-3">
               {[
-                { label: 'Entity', value: topUpResult.entity || '11111', field: 'entity' },
-                { label: 'Reference', value: topUpResult.reference || 'REF123456789', field: 'reference' },
-                { label: 'Amount', value: formatCurrency(topUpResult.amount || amount), field: 'amount' },
+                { label: t.topUp.entity, value: topUpResult.entity || '11111', field: 'entity' },
+                { label: t.topUp.reference, value: topUpResult.reference || 'REF123456789', field: 'reference' },
+                { label: t.topUp.amount, value: formatCurrency(topUpResult.amount || amount), field: 'amount' },
               ].map(({ label, value, field }) => (
                 <div key={field} className="flex items-center justify-between bg-gray-50 rounded-lg px-4 py-3">
                   <div>
@@ -120,15 +122,11 @@ export function TopUpModal({ open, onOpenChange }: TopUpModalProps) {
               ))}
             </div>
 
-            <p className="text-xs text-gray-400 text-center">
-              Referência válida por 48 horas. O saldo será atualizado automaticamente após o pagamento.
-            </p>
-            <p className="text-xs text-indigo-500 text-center">
-              Esta referência também está guardada no seu histórico de transações e foi enviada para o seu email.
-            </p>
+            <p className="text-xs text-gray-400 text-center">{t.topUp.referenceValid}</p>
+            <p className="text-xs text-indigo-500 text-center">{t.topUp.savedInHistory}</p>
 
             <Button onClick={handleClose} className="w-full">
-              Done
+              {t.topUp.done}
             </Button>
           </div>
         </DialogContent>
@@ -140,13 +138,13 @@ export function TopUpModal({ open, onOpenChange }: TopUpModalProps) {
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Top Up Wallet</DialogTitle>
+          <DialogTitle>{t.topUp.title}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
           {/* Amount */}
           <div className="space-y-1.5">
-            <Label htmlFor="amount">Amount (AOA)</Label>
+            <Label htmlFor="amount">{t.topUp.amountAoa}</Label>
             <Input
               id="amount"
               type="number"
@@ -159,20 +157,20 @@ export function TopUpModal({ open, onOpenChange }: TopUpModalProps) {
 
           {/* Payment Method */}
           <div className="space-y-2">
-            <Label>Payment Method</Label>
+            <Label>{t.topUp.paymentMethod}</Label>
             <div className="grid grid-cols-2 gap-3">
               {[
                 {
                   value: 'gpo',
                   label: 'GPO / Multicaixa Express',
                   icon: <Smartphone className="h-5 w-5" />,
-                  desc: 'Pay via phone',
+                  desc: t.topUp.gpoDesc,
                 },
                 {
                   value: 'reference',
                   label: 'ATM / Multicaixa',
                   icon: <Building className="h-5 w-5" />,
-                  desc: 'Pay at ATM',
+                  desc: t.topUp.atmDesc,
                 },
               ].map((method) => (
                 <button
@@ -198,7 +196,7 @@ export function TopUpModal({ open, onOpenChange }: TopUpModalProps) {
           {/* Phone (GPO only) */}
           {paymentMethod === 'gpo' && (
             <div className="space-y-1.5">
-              <Label htmlFor="phone">Multicaixa Express Phone</Label>
+              <Label htmlFor="phone">{t.topUp.multicaixaPhone}</Label>
               <Input
                 id="phone"
                 type="tel"
@@ -213,17 +211,17 @@ export function TopUpModal({ open, onOpenChange }: TopUpModalProps) {
           {amount > 0 && (
             <div className="bg-orange-50 border border-orange-200 rounded-lg px-4 py-3 text-sm">
               <p className="text-orange-700">
-                You will top up <span className="font-bold">{formatCurrency(amount)}</span> to your wallet
+                {t.topUp.willTopUp} <span className="font-bold">{formatCurrency(amount)}</span> {t.topUp.toWallet}
               </p>
             </div>
           )}
 
           <div className="flex gap-3">
             <Button type="button" variant="outline" onClick={handleClose} className="flex-1">
-              Cancel
+              {t.topUp.cancel}
             </Button>
             <Button type="submit" className="flex-1" loading={isPending}>
-              {paymentMethod === 'gpo' ? 'Pay with GPO' : 'Get Reference'}
+              {paymentMethod === 'gpo' ? t.topUp.payWithGpo : t.topUp.getReference}
             </Button>
           </div>
         </form>

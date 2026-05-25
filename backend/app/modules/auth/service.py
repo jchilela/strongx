@@ -406,6 +406,36 @@ async def resend_otp(phone: str) -> str:
     return "OTP resent"
 
 
+async def resend_email_verification(db: AsyncSession, email: str) -> str:
+    redis = await get_redis()
+
+    # Search pending registrations for matching email with phone already verified
+    pending_keys = await redis.keys("pending_reg:*")
+    for key in pending_keys:
+        key_str = key if isinstance(key, str) else key.decode()
+        raw = await redis.get(key_str)
+        if raw:
+            try:
+                data = json.loads(raw)
+                if data.get("email") == email and data.get("phone_verified"):
+                    token = secrets.token_urlsafe(32)
+                    await redis.setex(f"pending_email:{token}", 86400, data["phone"])
+                    await _send_verification_email(email, token, data["full_name"])
+                    return "Verification email resent."
+            except (json.JSONDecodeError, AttributeError):
+                pass
+
+    # Fallback: DB user who never verified email
+    user = await get_user_by_email(db, email)
+    if user and not user.email_verified:
+        token = secrets.token_urlsafe(32)
+        await redis.setex(f"pending_email:{token}", 86400, user.phone)
+        await _send_verification_email(email, token, user.full_name)
+        return "Verification email resent."
+
+    return "If that email is pending verification, a new link has been sent."
+
+
 async def forgot_password(db: AsyncSession, email: str) -> str:
     user = await get_user_by_email(db, email)
     if user:

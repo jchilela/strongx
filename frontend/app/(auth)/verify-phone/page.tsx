@@ -44,7 +44,7 @@ function VerifyPhoneContent() {
     setOtpError('');
     try {
       await authApi.verifyPhone({ phone, otp });
-      toast.success('Phone verified!', { description: 'Now please verify your email address.' });
+      toast.success(t.auth.phoneVerifiedToast, { description: t.auth.phoneVerifiedDesc });
       router.push(`/verify-email?email=${encodeURIComponent(email)}`);
     } catch (error) {
       const axiosError = error as AxiosError<{ message: string }>;
@@ -58,15 +58,15 @@ function VerifyPhoneContent() {
     setIsResending(true);
     try {
       await authApi.resendPhoneOtp(phone);
-      toast.success('Code sent!', { description: 'A new OTP has been sent to your phone.' });
+      toast.success(t.auth.codeSent, { description: t.auth.codeSentDesc });
       setCountdown(60);
       setCanResend(false);
       setOtp('');
       setOtpError('');
     } catch (error) {
       const axiosError = error as AxiosError<{ message: string }>;
-      toast.error('Failed to resend', {
-        description: axiosError.response?.data?.message || 'Please try again later.',
+      toast.error(t.auth.resendFailed, {
+        description: axiosError.response?.data?.message,
       });
     } finally {
       setIsResending(false);

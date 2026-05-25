@@ -48,11 +48,11 @@ function ProfileTab() {
     onSuccess: (user) => {
       storeUser(user);
       queryClient.invalidateQueries({ queryKey: ['user'] });
-      toast.success('Profile updated successfully!');
+      toast.success(t.settings.profileUpdated);
     },
     onError: (error: unknown) => {
       const axiosError = error as AxiosError<{ message: string }>;
-      toast.error('Failed to update profile', {
+      toast.error(t.settings.profileUpdateFailed, {
         description: axiosError.response?.data?.message,
       });
     },
@@ -132,13 +132,13 @@ function SecurityTab() {
       return response.data;
     },
     onSuccess: () => {
-      toast.success('Password changed successfully!');
+      toast.success(t.settings.passwordChanged);
       reset();
     },
     onError: (error: unknown) => {
       const axiosError = error as AxiosError<{ message: string }>;
-      toast.error('Failed to change password', {
-        description: axiosError.response?.data?.message || 'Please check your current password.',
+      toast.error(t.settings.passwordChangeFailed, {
+        description: axiosError.response?.data?.message,
       });
     },
   });
@@ -253,10 +253,10 @@ function NotificationsTab() {
       return response.data.data;
     },
     onSuccess: () => {
-      toast.success('Notification preferences saved!');
+      toast.success(t.settings.prefsSaved);
     },
     onError: () => {
-      toast.error('Failed to save preferences');
+      toast.error(t.settings.prefsSaveFailed);
     },
   });
 

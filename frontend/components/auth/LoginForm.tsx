@@ -45,7 +45,7 @@ export function LoginForm() {
       const message =
         axiosError.response?.data?.message ||
         'Invalid email or password. Please try again.';
-      toast.error('Login Failed', { description: message });
+      toast.error(t.auth.loginFailed, { description: message });
     } finally {
       setIsLoading(false);
     }

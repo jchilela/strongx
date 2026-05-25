@@ -45,8 +45,8 @@ function VerifyEmailContent() {
       setResent(true);
     } catch (error) {
       const axiosError = error as AxiosError<{ message: string }>;
-      toast.error('Failed to resend', {
-        description: axiosError.response?.data?.message || 'Please try again later.',
+      toast.error(t.auth.resendFailed, {
+        description: axiosError.response?.data?.message,
       });
     } finally {
       setIsResending(false);
@@ -84,7 +84,7 @@ function VerifyEmailContent() {
           <div className="py-8">
             <XCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
             <h1 className="text-2xl font-bold text-gray-900 mb-2">{t.auth.emailVerifiedFailed}</h1>
-            <p className="text-gray-500 mb-6">The link may have expired. Request a new one below.</p>
+            <p className="text-gray-500 mb-6">{t.auth.linkExpired}</p>
             <Link
               href="/login"
               className="inline-flex items-center gap-2 bg-[#6366f1] text-white font-semibold px-6 py-2.5 rounded-xl text-sm hover:bg-[#5254cc] transition-colors"

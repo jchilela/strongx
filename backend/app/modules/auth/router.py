@@ -19,6 +19,11 @@ from app.modules.auth.schemas import (
     UserData,
     VerifyPhoneRequest,
 )
+from pydantic import BaseModel
+
+
+class ResendEmailVerificationRequest(BaseModel):
+    email: str
 from app.modules.users.models import User
 
 router = APIRouter(prefix="/v1/auth", tags=["auth"])
@@ -89,6 +94,14 @@ async def logout(
 @router.post("/resend-otp", response_model=MessageResponse)
 async def resend_otp(data: ResendOtpRequest) -> MessageResponse:
     msg = await service.resend_otp(data.phone)
+    return MessageResponse(message=msg)
+
+
+@router.post("/resend-email-verification", response_model=MessageResponse)
+async def resend_email_verification(
+    data: ResendEmailVerificationRequest, db: AsyncSession = Depends(get_db)
+) -> MessageResponse:
+    msg = await service.resend_email_verification(db, data.email)
     return MessageResponse(message=msg)
 
 

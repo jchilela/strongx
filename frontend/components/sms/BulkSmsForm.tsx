@@ -15,6 +15,7 @@ import {
 import { applicationsApi, messagesApi } from '@/lib/api';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { useLang } from '@/lib/lang';
 
 interface Contact {
   phone: string;
@@ -81,6 +82,7 @@ export function BulkSmsForm() {
   const [isSending, setIsSending] = useState(false);
   const [sentCount, setSentCount] = useState(0);
   const abortRef = useRef(false);
+  const { t } = useLang();
 
   const { data: applications } = useQuery({
     queryKey: ['applications'],
@@ -93,9 +95,9 @@ export function BulkSmsForm() {
       const parsed = await parseExcel(file);
       setContacts(parsed);
       setSentCount(0);
-      toast.success(`${parsed.length} contact${parsed.length !== 1 ? 's' : ''} loaded`);
+      toast.success(`${parsed.length} ${t.bulk.countLoaded}`);
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Failed to parse file');
+      toast.error(err instanceof Error ? err.message : t.bulk.uploadFile);
     }
   }, []);
 
@@ -106,12 +108,12 @@ export function BulkSmsForm() {
   }, [handleFileChange]);
 
   const handleSend = async () => {
-    if (!applicationId) { toast.error('Select an application'); return; }
-    if (!message.trim()) { toast.error('Enter a message'); return; }
-    if (!contacts.length) { toast.error('Upload a contacts file'); return; }
+    if (!applicationId) { toast.error(t.bulk.selectApp); return; }
+    if (!message.trim()) { toast.error(t.bulk.enterMessage); return; }
+    if (!contacts.length) { toast.error(t.bulk.uploadFile); return; }
 
     const pending = contacts.filter((c) => c.status === 'pending');
-    if (!pending.length) { toast.error('No pending contacts to send to'); return; }
+    if (!pending.length) { toast.error(t.bulk.noPending); return; }
 
     setIsSending(true);
     abortRef.current = false;
@@ -146,7 +148,7 @@ export function BulkSmsForm() {
 
     setIsSending(false);
     queryClient.invalidateQueries({ queryKey: ['messages', 'sms'] });
-    toast.success(`Done — ${sent} message${sent !== 1 ? 's' : ''} sent`);
+    toast.success(`${t.bulk.done} ${sent} ${t.bulk.msgSent}`);
   };
 
   const pendingCount = contacts.filter((c) => c.status === 'pending').length;
@@ -159,15 +161,15 @@ export function BulkSmsForm() {
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-100">
           <FileSpreadsheet className="h-4 w-4 text-[#6366f1]" />
         </div>
-        <h2 className="text-base font-semibold text-gray-900">Bulk SMS</h2>
+        <h2 className="text-base font-semibold text-gray-900">{t.bulk.title}</h2>
       </div>
 
       {/* Application */}
       <div className="space-y-1.5">
-        <Label>Application</Label>
+        <Label>{t.smsForm.application}</Label>
         <Select onValueChange={setApplicationId} value={applicationId}>
           <SelectTrigger>
-            <SelectValue placeholder="Select application" />
+            <SelectValue placeholder={t.smsForm.selectApplication} />
           </SelectTrigger>
           <SelectContent>
             {applications?.map((app) => (
@@ -180,7 +182,7 @@ export function BulkSmsForm() {
       {/* Message */}
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
-          <Label>Message</Label>
+          <Label>{t.smsForm.message}</Label>
           <span className="text-xs text-gray-400">{message.length}/160</span>
         </div>
         <Textarea
@@ -191,21 +193,21 @@ export function BulkSmsForm() {
         />
         <p className="text-xs text-gray-400 flex items-center gap-1">
           <Info className="h-3 w-3" />
-          Use <code className="bg-gray-100 px-1 rounded">{'{{name}}'}</code> to personalise with the contact's name
+          {t.bulk.personalizeHint}
         </p>
       </div>
 
       {/* Template download + upload */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <Label>Contacts file</Label>
+          <Label>{t.bulk.contactsFile}</Label>
           <button
             type="button"
             onClick={downloadTemplate}
             className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 font-medium"
           >
             <Download className="h-3.5 w-3.5" />
-            Download template
+            {t.bulk.downloadTemplate}
           </button>
         </div>
 
@@ -219,11 +221,11 @@ export function BulkSmsForm() {
           <Upload className="h-6 w-6 text-gray-300 mx-auto mb-2" />
           <p className="text-sm text-gray-500">
             {contacts.length > 0
-              ? <span className="text-indigo-600 font-medium">{contacts.length} contacts loaded — click to replace</span>
-              : <>Drop your <strong>.xlsx</strong> or <strong>.csv</strong> here, or click to browse</>
+              ? <span className="text-indigo-600 font-medium">{contacts.length} {t.bulk.contactsLoaded}</span>
+              : <>{t.bulk.dropHint}</>
             }
           </p>
-          <p className="text-xs text-gray-400 mt-1">Column A: Phone number · Column B: Name</p>
+          <p className="text-xs text-gray-400 mt-1">{t.bulk.columnInfo}</p>
         </div>
         <input
           ref={fileInputRef}
@@ -239,8 +241,8 @@ export function BulkSmsForm() {
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <p className="text-xs font-medium text-gray-600">
-              {contacts.length} contacts
-              {failedCount > 0 && <span className="text-red-500 ml-2">· {failedCount} failed</span>}
+              {contacts.length} {t.bulk.contacts}
+              {failedCount > 0 && <span className="text-red-500 ml-2">· {failedCount} {t.bulk.failed}</span>}
             </p>
             {!isSending && (
               <button
@@ -248,7 +250,7 @@ export function BulkSmsForm() {
                 onClick={() => { setContacts([]); setSentCount(0); }}
                 className="text-xs text-gray-400 hover:text-red-500 flex items-center gap-1"
               >
-                <X className="h-3 w-3" /> Clear
+                <X className="h-3 w-3" /> {t.bulk.clear}
               </button>
             )}
           </div>
@@ -277,7 +279,7 @@ export function BulkSmsForm() {
           {isSending && (
             <div className="space-y-1">
               <div className="flex justify-between text-xs text-gray-500">
-                <span>Sending...</span>
+                <span>{t.bulk.sending}</span>
                 <span>{sentCount} / {contacts.length}</span>
               </div>
               <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
@@ -299,7 +301,7 @@ export function BulkSmsForm() {
             className="w-full"
             onClick={() => { abortRef.current = true; }}
           >
-            <X className="h-4 w-4 mr-2" /> Stop sending
+            <X className="h-4 w-4 mr-2" /> {t.bulk.stopSending}
           </Button>
         ) : (
           <Button
@@ -308,7 +310,7 @@ export function BulkSmsForm() {
             onClick={handleSend}
           >
             <Send className="h-4 w-4 mr-2" />
-            Send to {pendingCount || contacts.length || 0} contact{(pendingCount || contacts.length) !== 1 ? 's' : ''}
+            {t.bulk.sendTo} {pendingCount || contacts.length || 0} {(pendingCount || contacts.length) !== 1 ? t.bulk.contactPlural : t.bulk.contact}
           </Button>
         )}
       </div>

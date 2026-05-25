@@ -27,6 +27,7 @@ import type { CreateApiKeyResponse } from '@/types/api';
 import { copyToClipboard } from '@/lib/utils';
 import { toast } from 'sonner';
 import { AxiosError } from 'axios';
+import { useLang } from '@/lib/lang';
 
 interface CreateKeyModalProps {
   open: boolean;
@@ -37,6 +38,7 @@ export function CreateKeyModal({ open, onOpenChange }: CreateKeyModalProps) {
   const queryClient = useQueryClient();
   const [createdKey, setCreatedKey] = useState<CreateApiKeyResponse | null>(null);
   const [copied, setCopied] = useState(false);
+  const { t } = useLang();
 
   const { data: applications } = useQuery({
     queryKey: ['applications'],
@@ -67,8 +69,8 @@ export function CreateKeyModal({ open, onOpenChange }: CreateKeyModalProps) {
     },
     onError: (error: unknown) => {
       const axiosError = error as AxiosError<{ message: string }>;
-      toast.error('Failed to create key', {
-        description: axiosError.response?.data?.message || 'Please try again.',
+      toast.error(t.developer.createFailed, {
+        description: axiosError.response?.data?.message,
       });
     },
   });
@@ -78,10 +80,10 @@ export function CreateKeyModal({ open, onOpenChange }: CreateKeyModalProps) {
     try {
       await copyToClipboard(createdKey.fullKey);
       setCopied(true);
-      toast.success('API key copied to clipboard!');
+      toast.success(t.developer.keyCopied);
       setTimeout(() => setCopied(false), 3000);
     } catch {
-      toast.error('Failed to copy');
+      toast.error(t.developer.copyFailed);
     }
   };
 
@@ -100,7 +102,7 @@ export function CreateKeyModal({ open, onOpenChange }: CreateKeyModalProps) {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <CheckCircle className="h-5 w-5 text-green-600" />
-              API Key Created
+              {t.developer.keyCreatedTitle}
             </DialogTitle>
           </DialogHeader>
 
@@ -108,15 +110,13 @@ export function CreateKeyModal({ open, onOpenChange }: CreateKeyModalProps) {
             <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-lg p-4">
               <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
               <div className="text-sm text-amber-700">
-                <p className="font-semibold">Save this key now</p>
-                <p className="mt-0.5">
-                  This is the only time the full key will be shown. If you lose it, you&apos;ll need to create a new one.
-                </p>
+                <p className="font-semibold">{t.developer.saveKeyNow}</p>
+                <p className="mt-0.5">{t.developer.saveKeyWarning}</p>
               </div>
             </div>
 
             <div>
-              <Label className="text-xs text-gray-500 mb-1.5 block">Your API Key</Label>
+              <Label className="text-xs text-gray-500 mb-1.5 block">{t.developer.yourApiKey}</Label>
               <div className="flex items-center gap-2">
                 <div className="flex-1 bg-slate-900 text-green-400 font-mono text-sm rounded-lg px-4 py-3 overflow-x-auto whitespace-nowrap">
                   {createdKey.fullKey}
@@ -138,23 +138,23 @@ export function CreateKeyModal({ open, onOpenChange }: CreateKeyModalProps) {
 
             <div className="bg-gray-50 rounded-lg p-3 space-y-1 text-sm">
               <p className="text-gray-700">
-                <span className="font-medium">Key name:</span>{' '}
+                <span className="font-medium">{t.developer.keyNameLabel}:</span>{' '}
                 {createdKey.apiKey.name}
               </p>
               {createdKey.apiKey.applicationName && (
                 <p className="text-gray-700">
-                  <span className="font-medium">Application:</span>{' '}
+                  <span className="font-medium">{t.developer.tableApplication}:</span>{' '}
                   {createdKey.apiKey.applicationName}
                 </p>
               )}
               <p className="text-gray-700">
-                <span className="font-medium">Prefix:</span>{' '}
+                <span className="font-medium">{t.developer.tableKeyPrefix}:</span>{' '}
                 <span className="font-mono">{createdKey.apiKey.prefix}...</span>
               </p>
             </div>
 
             <Button onClick={handleClose} className="w-full">
-              I&apos;ve saved my key
+              {t.developer.savedMyKey}
             </Button>
           </div>
         </DialogContent>
@@ -166,31 +166,29 @@ export function CreateKeyModal({ open, onOpenChange }: CreateKeyModalProps) {
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Create API Key</DialogTitle>
+          <DialogTitle>{t.developer.createKeyTitle}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit((data) => createKey(data))} className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="keyName">Key Name</Label>
+            <Label htmlFor="keyName">{t.developer.keyNameLabel}</Label>
             <Input
               id="keyName"
-              placeholder="My production key"
+              placeholder={t.developer.keyNamePlaceholder}
               error={errors.name?.message}
               {...register('name')}
             />
-            <p className="text-xs text-gray-400">
-              A descriptive name to identify this key
-            </p>
+            <p className="text-xs text-gray-400">{t.developer.keyNameHint}</p>
           </div>
 
           <div className="space-y-1.5">
-            <Label>Application (Optional)</Label>
+            <Label>{t.developer.appOptional}</Label>
             <Select onValueChange={(val) => setValue('applicationId', val === 'none' ? undefined : val)}>
               <SelectTrigger>
-                <SelectValue placeholder="No specific application" />
+                <SelectValue placeholder={t.developer.noSpecificApp} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">No specific application</SelectItem>
+                <SelectItem value="none">{t.developer.noSpecificApp}</SelectItem>
                 {applications?.map((app) => (
                   <SelectItem key={app.id} value={app.id}>
                     {app.name}
@@ -203,10 +201,10 @@ export function CreateKeyModal({ open, onOpenChange }: CreateKeyModalProps) {
 
           <div className="flex gap-3 pt-2">
             <Button type="button" variant="outline" onClick={handleClose} className="flex-1">
-              Cancel
+              {t.developer.cancelBtn}
             </Button>
             <Button type="submit" className="flex-1" loading={isPending}>
-              Create Key
+              {t.developer.createApiKey}
             </Button>
           </div>
         </form>

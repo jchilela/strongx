@@ -71,10 +71,8 @@ function ResetPasswordContent() {
       toast.success(t.auth.passwordResetSuccess);
     } catch (error) {
       const axiosError = error as AxiosError<{ message: string }>;
-      const message =
-        axiosError.response?.data?.message ||
-        'Failed to reset password. The link may have expired.';
-      toast.error('Reset Failed', { description: message });
+      const message = axiosError.response?.data?.message;
+      toast.error(t.auth.resetFailed, { description: message });
     } finally {
       setIsLoading(false);
     }

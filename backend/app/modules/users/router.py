@@ -1,8 +1,11 @@
+import json
+
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.redis import get_redis
 from app.core.security import hash_password, verify_password
 from app.core.exceptions import ValidationError
 from app.modules.auth.dependencies import get_current_active_user
@@ -72,20 +75,23 @@ async def change_password(
     return {"success": True, "data": None}
 
 
+_DEFAULT_PREFS = {
+    "emailOnDelivery": False,
+    "emailOnFailure": True,
+    "smsOnLowBalance": False,
+    "lowBalanceThreshold": 100,
+    "weeklyReport": False,
+}
+
+
 @router.get("/notifications")
 async def get_notification_preferences(
     current_user: User = Depends(get_current_active_user),
 ) -> dict:
-    return {
-        "success": True,
-        "data": {
-            "emailOnDelivery": False,
-            "emailOnFailure": True,
-            "smsOnLowBalance": False,
-            "lowBalanceThreshold": 100,
-            "weeklyReport": False,
-        },
-    }
+    redis = await get_redis()
+    raw = await redis.get(f"notif_prefs:{current_user.id}")
+    prefs = json.loads(raw) if raw else _DEFAULT_PREFS
+    return {"success": True, "data": prefs}
 
 
 @router.put("/notifications")
@@ -93,4 +99,6 @@ async def update_notification_preferences(
     data: dict,
     current_user: User = Depends(get_current_active_user),
 ) -> dict:
+    redis = await get_redis()
+    await redis.set(f"notif_prefs:{current_user.id}", json.dumps(data))
     return {"success": True, "data": data}

@@ -52,8 +52,8 @@ export function RegisterForm() {
     setIsLoading(true);
     try {
       await authApi.register(data);
-      toast.success('Account created!', {
-        description: 'Please verify your phone number to continue.',
+      toast.success(t.auth.accountCreated, {
+        description: t.auth.accountCreatedDesc,
       });
       router.push(`/verify-phone?phone=${encodeURIComponent(data.phone)}&email=${encodeURIComponent(data.email)}`);
     } catch (error) {
@@ -61,12 +61,10 @@ export function RegisterForm() {
       const serverErrors = axiosError.response?.data?.errors;
       if (serverErrors) {
         const firstError = Object.values(serverErrors)[0]?.[0];
-        toast.error('Registration Failed', { description: firstError });
+        toast.error(t.auth.registrationFailed, { description: firstError });
       } else {
-        const message =
-          axiosError.response?.data?.message ||
-          'Failed to create account. Please try again.';
-        toast.error('Registration Failed', { description: message });
+        const message = axiosError.response?.data?.message;
+        toast.error(t.auth.registrationFailed, { description: message });
       }
     } finally {
       setIsLoading(false);

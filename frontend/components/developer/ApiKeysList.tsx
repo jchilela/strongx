@@ -22,10 +22,12 @@ import { PageLoader } from '@/components/shared/LoadingSpinner';
 import { apiKeysApi } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
 import { toast } from 'sonner';
+import { useLang } from '@/lib/lang';
 
 export function ApiKeysList() {
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
+  const { t } = useLang();
 
   const { data: keys, isLoading } = useQuery({
     queryKey: ['api-keys'],
@@ -39,10 +41,10 @@ export function ApiKeysList() {
     mutationFn: (id: string) => apiKeysApi.revokeApiKey(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['api-keys'] });
-      toast.success('API key revoked');
+      toast.success(t.developer.revokeSuccess);
     },
     onError: () => {
-      toast.error('Failed to revoke key');
+      toast.error(t.developer.revokeFailed);
     },
   });
 
@@ -52,14 +54,14 @@ export function ApiKeysList() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-base font-semibold text-gray-900">API Keys</h2>
+          <h2 className="text-base font-semibold text-gray-900">{t.developer.apiKeys}</h2>
           <p className="text-sm text-gray-500">
-            {keys?.length || 0} key{keys?.length !== 1 ? 's' : ''}
+            {keys?.length || 0} {t.developer.keyCount}
           </p>
         </div>
         <Button onClick={() => setCreateOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
-          Create New Key
+          {t.developer.createNewKey}
         </Button>
       </div>
 
@@ -67,12 +69,12 @@ export function ApiKeysList() {
         <div className="bg-white rounded-xl border border-gray-200">
           <EmptyState
             icon={Key}
-            title="No API keys"
-            description="Create an API key to start integrating StrongX into your applications."
+            title={t.developer.noApiKeys}
+            description={t.developer.noApiKeysDesc}
             action={
               <Button onClick={() => setCreateOpen(true)}>
                 <Plus className="h-4 w-4 mr-2" />
-                Create API Key
+                {t.developer.createApiKey}
               </Button>
             }
           />
@@ -82,13 +84,13 @@ export function ApiKeysList() {
           <table className="data-table">
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Key Prefix</th>
-                <th className="hidden md:table-cell">Application</th>
-                <th className="hidden lg:table-cell">Created</th>
-                <th className="hidden lg:table-cell">Last Used</th>
-                <th>Status</th>
-                <th>Action</th>
+                <th>{t.developer.tableKeyName}</th>
+                <th>{t.developer.tableKeyPrefix}</th>
+                <th className="hidden md:table-cell">{t.developer.tableApplication}</th>
+                <th className="hidden lg:table-cell">{t.developer.tableCreated}</th>
+                <th className="hidden lg:table-cell">{t.developer.tableLastUsed}</th>
+                <th>{t.developer.tableStatus}</th>
+                <th>{t.developer.tableAction}</th>
               </tr>
             </thead>
             <tbody>
@@ -108,7 +110,7 @@ export function ApiKeysList() {
                   </td>
                   <td className="hidden lg:table-cell text-xs text-gray-500">
                     {key.lastUsedAt ? formatDate(key.lastUsedAt) : (
-                      <span className="text-gray-300">Never</span>
+                      <span className="text-gray-300">{t.developer.neverUsed}</span>
                     )}
                   </td>
                   <td>
@@ -119,7 +121,7 @@ export function ApiKeysList() {
                         }`}
                       />
                       <Badge variant={key.isActive ? 'success' : 'secondary'}>
-                        {key.isActive ? 'Active' : 'Revoked'}
+                        {key.isActive ? t.developer.activeStatus : t.developer.revokedStatus}
                       </Badge>
                     </div>
                   </td>
@@ -137,16 +139,15 @@ export function ApiKeysList() {
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                           <AlertDialogHeader>
-                            <AlertDialogTitle>Revoke API Key</AlertDialogTitle>
+                            <AlertDialogTitle>{t.developer.revokeKeyTitle}</AlertDialogTitle>
                             <AlertDialogDescription>
-                              Are you sure you want to revoke &quot;{key.name}&quot;? Any applications
-                              using this key will immediately lose access.
+                              {t.developer.revokeKeyConfirm} &quot;{key.name}&quot;? {t.developer.revokeKeyWarning}
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogCancel>{t.developer.cancelBtn}</AlertDialogCancel>
                             <AlertDialogAction onClick={() => revokeKey(key.id)}>
-                              Revoke Key
+                              {t.developer.revokeBtn}
                             </AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
