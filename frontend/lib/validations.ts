@@ -25,7 +25,13 @@ export const registerSchema = z
     phone: z
       .string()
       .min(1, 'Phone number is required')
-      .regex(/^\+244[0-9]{9}$/, 'Phone must be in format +244XXXXXXXXX (9 digits after +244)'),
+      .transform((val) => {
+        const digits = val.replace(/[\s\-().+]/g, '');
+        if (digits.startsWith('244') && digits.length === 12) return `+${digits}`;
+        if (!digits.startsWith('244') && digits.length === 9) return `+244${digits}`;
+        return val.startsWith('+') ? val : `+${val}`;
+      })
+      .refine((val) => /^\+244[0-9]{9}$/.test(val), 'Número deve estar no formato +244XXXXXXXXX'),
     password: z
       .string()
       .min(1, 'Password is required')
@@ -70,7 +76,13 @@ export const sendSmsSchema = z.object({
   to: z
     .string()
     .min(1, 'Phone number is required')
-    .regex(/^\+244[0-9]{9}$/, 'Phone must be in format +244XXXXXXXXX'),
+    .transform((val) => {
+      const digits = val.replace(/[\s\-().+]/g, '');
+      if (digits.startsWith('244') && digits.length === 12) return `+${digits}`;
+      if (!digits.startsWith('244') && digits.length === 9) return `+244${digits}`;
+      return val.startsWith('+') ? val : `+${val}`;
+    })
+    .refine((val) => /^\+244[0-9]{9}$/.test(val), 'Número deve estar no formato +244XXXXXXXXX'),
   message: z
     .string()
     .min(1, 'Message is required')
@@ -107,7 +119,13 @@ export const sendWhatsAppSchema = z.object({
   to: z
     .string()
     .min(1, 'Phone number is required')
-    .regex(/^\+244[0-9]{9}$/, 'Phone must be in format +244XXXXXXXXX'),
+    .transform((val) => {
+      const digits = val.replace(/[\s\-().+]/g, '');
+      if (digits.startsWith('244') && digits.length === 12) return `+${digits}`;
+      if (!digits.startsWith('244') && digits.length === 9) return `+244${digits}`;
+      return val.startsWith('+') ? val : `+${val}`;
+    })
+    .refine((val) => /^\+244[0-9]{9}$/.test(val), 'Número deve estar no formato +244XXXXXXXXX'),
   message: z
     .string()
     .min(1, 'Message is required')
@@ -131,7 +149,13 @@ export const topUpSchema = z.object({
   paymentMethod: z.enum(['gpo', 'reference'], {
     required_error: 'Please select a payment method',
   }),
-  phone: z.string().optional(),
+  phone: z.string().optional().transform((val) => {
+    if (!val) return val;
+    const digits = val.replace(/[\s\-().+]/g, '');
+    if (digits.startsWith('244') && digits.length === 12) return `+${digits}`;
+    if (!digits.startsWith('244') && digits.length === 9) return `+244${digits}`;
+    return val.startsWith('+') ? val : `+${val}`;
+  }),
 }).refine(
   (data) => {
     if (data.paymentMethod === 'gpo') {
@@ -140,7 +164,7 @@ export const topUpSchema = z.object({
     return true;
   },
   {
-    message: 'Phone number is required for GPO payment (format: +244XXXXXXXXX)',
+    message: 'Número obrigatório para pagamento GPO (formato: +244XXXXXXXXX)',
     path: ['phone'],
   }
 );

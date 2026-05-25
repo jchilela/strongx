@@ -14,7 +14,8 @@ import {
   Settings,
   LogOut,
   X,
-  ShieldCheck,
+  Users,
+  AppWindowIcon,
   TrendingUp,
   FileText,
 } from 'lucide-react';
@@ -129,10 +130,20 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                   <Link
                     href="/admin/users"
                     onClick={onClose}
-                    className={cn('sidebar-item', (pathname.startsWith('/admin/users') || pathname.startsWith('/admin/applications')) && 'active')}
+                    className={cn('sidebar-item', pathname.startsWith('/admin/users') && 'active')}
                   >
-                    <ShieldCheck className="h-4 w-4 flex-shrink-0" />
-                    <span>{t.nav.usersApps}</span>
+                    <Users className="h-4 w-4 flex-shrink-0" />
+                    <span>{t.nav.adminUsers}</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/admin/applications"
+                    onClick={onClose}
+                    className={cn('sidebar-item', pathname.startsWith('/admin/applications') && 'active')}
+                  >
+                    <AppWindowIcon className="h-4 w-4 flex-shrink-0" />
+                    <span>{t.nav.adminApps}</span>
                   </Link>
                 </li>
                 <li>
@@ -152,7 +163,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                     className={cn('sidebar-item', pathname.startsWith('/admin/sms-logs') && 'active')}
                   >
                     <FileText className="h-4 w-4 flex-shrink-0" />
-                    <span>SMS Logs</span>
+                    <span>{t.nav.smsLogs}</span>
                   </Link>
                 </li>
               </>

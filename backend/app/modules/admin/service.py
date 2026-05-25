@@ -48,11 +48,14 @@ async def update_user(db: AsyncSession, user_id: uuid.UUID, updates: dict) -> Us
     return user
 
 
-async def list_user_api_keys(db: AsyncSession, user_id: uuid.UUID) -> list[ApiKey]:
+async def list_user_api_keys(db: AsyncSession, user_id: uuid.UUID) -> list[tuple]:
     result = await db.execute(
-        select(ApiKey).where(ApiKey.user_id == user_id).order_by(ApiKey.created_at.desc())
+        select(ApiKey, Application)
+        .outerjoin(Application, Application.id == ApiKey.application_id)
+        .where(ApiKey.user_id == user_id)
+        .order_by(ApiKey.created_at.desc())
     )
-    return list(result.scalars().all())
+    return list(result.all())  # list of (ApiKey, Application|None) tuples
 
 
 async def toggle_api_key(db: AsyncSession, key_id: uuid.UUID, is_active: bool) -> ApiKey:

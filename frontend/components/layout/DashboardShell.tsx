@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 
@@ -24,6 +25,15 @@ export function DashboardShell({ children, title }: DashboardShellProps) {
             {children}
           </div>
         </main>
+
+        <footer className="border-t border-gray-100 bg-white px-6 py-2 text-center">
+          <p className="text-xs text-gray-300">
+            &copy; {new Date().getFullYear()} StrongX &mdash;{' '}
+            <Link href="/terms" target="_blank" className="hover:text-gray-500 underline">
+              Termos de Serviço
+            </Link>
+          </p>
+        </footer>
       </div>
     </div>
   );

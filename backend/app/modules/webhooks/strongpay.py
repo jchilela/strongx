@@ -3,6 +3,7 @@ import hmac
 from datetime import datetime, timezone
 from typing import Any
 
+import httpx
 from fastapi import HTTPException, Request, status
 from loguru import logger
 from sqlalchemy import select
@@ -13,6 +14,38 @@ from app.core.socket import emit_to_user
 from app.modules.notifications.service import create_notification
 from app.modules.wallet.models import Payment, Wallet, WalletTransaction
 from app.modules.wallet.service import TERMINAL_STATUSES
+
+
+async def _send_sms_confirmation(phone: str, amount, new_balance) -> None:
+    """Send an SMS to the user confirming their wallet has been credited."""
+    if not settings.TELCOSMS_API_KEY:
+        logger.warning(
+            f"TelcoSMS not configured. SMS confirmation for {phone}: {amount} AOA credited."
+        )
+        return
+    message = (
+        f"StrongX: Carteira carregada com {amount} AOA. "
+        f"Saldo actual: {new_balance} AOA."
+    )
+    # Keep under 160 chars
+    if len(message) > 160:
+        message = message[:157] + "..."
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post(
+                settings.TELCOSMS_URL,
+                json={
+                    "message": {
+                        "api_key_app": settings.TELCOSMS_API_KEY,
+                        "phone_number": phone,
+                        "message_body": message,
+                    }
+                },
+            )
+            if resp.status_code != 200:
+                logger.error(f"TelcoSMS SMS confirmation error: {resp.status_code} {resp.text}")
+    except Exception as exc:
+        logger.error(f"TelcoSMS SMS confirmation exception: {exc}")
 
 
 def _verify_signature(secret: str, body: bytes, header: str | None) -> bool:
@@ -105,6 +138,14 @@ async def handle_strongpay_webhook(request: Request, db: AsyncSession) -> dict:
                 "wallet.balance.updated",
                 {"balance": float(wallet.balance), "currency": wallet.currency},
             )
+
+            # Send SMS confirmation to the customer's phone
+            if payment.customer_phone:
+                await _send_sms_confirmation(
+                    phone=payment.customer_phone,
+                    amount=payment.amount,
+                    new_balance=wallet.balance,
+                )
 
         await create_notification(
             db,

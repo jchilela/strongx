@@ -2,7 +2,7 @@ import uuid
 from decimal import Decimal
 from typing import Optional
 from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.modules.auth.dependencies import get_current_admin_user, get_current_super_admin_user
@@ -47,12 +47,13 @@ def _serialize_app(app, owner=None) -> dict:
     }
 
 
-def _serialize_key(k) -> dict:
+def _serialize_key(k, app=None) -> dict:
     return {
         "id": str(k.id),
         "name": k.name,
         "prefix": k.key_prefix,
         "applicationId": str(k.application_id) if k.application_id else None,
+        "applicationName": app.name if app else None,
         "isActive": k.is_active,
         "lastUsedAt": k.last_used_at.isoformat() if k.last_used_at else None,
         "createdAt": k.created_at.isoformat(),
@@ -87,6 +88,10 @@ class ToggleKeyRequest(BaseModel):
 class AddFundsRequest(BaseModel):
     amount: Decimal
     description: str = "Admin credit"
+
+
+class UpdateProfileRequest(BaseModel):
+    fullName: str = Field(..., min_length=2, max_length=255)
 
 
 @router.get("/users")
@@ -126,6 +131,20 @@ async def update_user(
     return {"success": True, "data": _serialize_user(user)}
 
 
+@router.patch("/users/{user_id}/profile")
+async def update_user_profile(
+    user_id: uuid.UUID,
+    data: UpdateProfileRequest,
+    _: User = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    user = await service.get_user(db, user_id)
+    user.full_name = data.fullName
+    await db.flush()
+    await db.commit()
+    return {"success": True, "data": _serialize_user(user)}
+
+
 @router.get("/users/{user_id}/api-keys")
 async def list_user_api_keys(
     user_id: uuid.UUID,
@@ -133,7 +152,7 @@ async def list_user_api_keys(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     keys = await service.list_user_api_keys(db, user_id)
-    return {"success": True, "data": [_serialize_key(k) for k in keys]}
+    return {"success": True, "data": [_serialize_key(k, app) for k, app in keys]}
 
 
 @router.put("/api-keys/{key_id}")

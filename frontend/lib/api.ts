@@ -221,4 +221,28 @@ export const adminApi = {
     api.delete<ApiResponse<null>>(`/admin/users/${userId}`),
   getSmsSendLogs: (limit = 50) =>
     api.get<ApiResponse<unknown[]>>('/admin/sms-send-logs', { params: { limit } }),
+  updateUserProfile: (userId: string, data: { fullName: string }) =>
+    api.patch<ApiResponse<import('@/types/admin').AdminUser>>(`/admin/users/${userId}/profile`, data),
 };
+
+// Notifications endpoints
+export const notificationsApi = {
+  list: (page = 1, pageSize = 20) =>
+    api.get<ApiResponse<{ items: Notification[]; total: number; page: number; page_size: number }>>('/notifications', { params: { page, page_size: pageSize } }),
+  getUnreadCount: () =>
+    api.get<ApiResponse<{ unread_count: number }>>('/notifications/unread-count'),
+  markRead: (id: string) =>
+    api.patch<ApiResponse<Notification>>(`/notifications/${id}/read`),
+  markAllRead: () =>
+    api.patch<ApiResponse<{ marked_read: number }>>('/notifications/read-all'),
+};
+
+export interface Notification {
+  id: string;
+  user_id: string;
+  title: string;
+  body: string;
+  type: 'info' | 'success' | 'warning' | 'error';
+  is_read: boolean;
+  created_at: string;
+}

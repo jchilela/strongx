@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 from datetime import datetime, timezone
 from decimal import Decimal
@@ -13,6 +14,87 @@ from app.core.exceptions import ExternalServiceError, NotFoundError
 from app.modules.wallet.models import Payment, Wallet, WalletTransaction
 
 TERMINAL_STATUSES = {"paid", "failed", "cancelled", "expired"}
+
+
+async def _send_email_via_sendgrid(to_email: str, subject: str, html: str) -> None:
+    """Send an email via SendGrid or SMTP; log a warning if neither is configured."""
+    if settings.SMTP_USER and settings.SMTP_PASSWORD:
+        import smtplib
+        from email.mime.multipart import MIMEMultipart
+        from email.mime.text import MIMEText
+
+        def _smtp_send() -> None:
+            msg = MIMEMultipart("alternative")
+            msg["Subject"] = subject
+            msg["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_USER}>"
+            msg["To"] = to_email
+            msg.attach(MIMEText(html, "html"))
+            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
+                server.ehlo()
+                server.starttls()
+                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+                server.sendmail(settings.SMTP_USER, to_email, msg.as_string())
+
+        try:
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(None, _smtp_send)
+            logger.info(f"[WALLET-EMAIL] Sent to {to_email}: {subject}")
+        except Exception as exc:
+            logger.error(f"[WALLET-EMAIL] SMTP error sending to {to_email}: {exc}")
+        return
+
+    if settings.TWILIO_SENDGRID_API_KEY:
+        try:
+            import sendgrid
+            from sendgrid.helpers.mail import Mail
+
+            sg = sendgrid.SendGridAPIClient(api_key=settings.TWILIO_SENDGRID_API_KEY)
+            message = Mail(
+                from_email=("noreply@strongx.it.ao", "StrongX"),
+                to_emails=to_email,
+                subject=subject,
+                html_content=html,
+            )
+            sg.send(message)
+            logger.info(f"[WALLET-EMAIL-SG] Sent to {to_email}: {subject}")
+        except Exception as exc:
+            logger.error(f"[WALLET-EMAIL-SG] SendGrid exception: {exc}")
+        return
+
+    logger.warning(
+        f"[WALLET-EMAIL-SKIP] No email provider configured. To={to_email} Subject={subject}"
+    )
+
+
+async def _send_reference_email(
+    email: str, name: str, entity: str, reference: str, amount: Decimal, expires_at
+) -> None:
+    """Send an email to the user with their payment reference details."""
+    expires_str = (
+        expires_at.strftime("%d/%m/%Y %H:%M UTC") if expires_at else "48 horas"
+    )
+    html = (
+        f"<p>Olá {name},</p>"
+        f"<p>A sua referência de pagamento foi gerada com sucesso. Utilize os dados abaixo para efectuar o pagamento.</p>"
+        f"<table style='border-collapse:collapse;width:100%;max-width:500px;'>"
+        f"<tr><td style='padding:8px;border:1px solid #ddd;font-weight:bold;'>Entidade</td>"
+        f"<td style='padding:8px;border:1px solid #ddd;'>{entity}</td></tr>"
+        f"<tr><td style='padding:8px;border:1px solid #ddd;font-weight:bold;'>Referência</td>"
+        f"<td style='padding:8px;border:1px solid #ddd;'>{reference}</td></tr>"
+        f"<tr><td style='padding:8px;border:1px solid #ddd;font-weight:bold;'>Montante</td>"
+        f"<td style='padding:8px;border:1px solid #ddd;'>{amount} AOA</td></tr>"
+        f"<tr><td style='padding:8px;border:1px solid #ddd;font-weight:bold;'>Expira em</td>"
+        f"<td style='padding:8px;border:1px solid #ddd;'>{expires_str}</td></tr>"
+        f"</table>"
+        f"<p><strong>Como pagar:</strong> Pague num ATM Multicaixa ou via Multicaixa Express.</p>"
+        f"<p>Após confirmação do pagamento, a sua carteira StrongX será carregada automaticamente.</p>"
+        f"<p>— A Equipa StrongX</p>"
+    )
+    await _send_email_via_sendgrid(
+        to_email=email,
+        subject="Referência de Pagamento StrongX",
+        html=html,
+    )
 
 
 def _strongpay_headers() -> dict:
@@ -109,6 +191,19 @@ async def initiate_topup(
     db.add(payment)
     await db.flush()
     await db.refresh(payment)
+
+    # Send reference email if this is a reference payment and we have an email
+    if payment.payment_reference and email:
+        asyncio.create_task(
+            _send_reference_email(
+                email=email,
+                name=name,
+                entity=payment.entity_number or "",
+                reference=payment.payment_reference,
+                amount=amount,
+                expires_at=payment.expires_at,
+            )
+        )
 
     if gpo_paid:
         wallet_result = await db.execute(

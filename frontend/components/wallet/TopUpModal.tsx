@@ -121,7 +121,10 @@ export function TopUpModal({ open, onOpenChange }: TopUpModalProps) {
             </div>
 
             <p className="text-xs text-gray-400 text-center">
-              Reference is valid for 48 hours. Your balance will be updated automatically after payment.
+              Referência válida por 48 horas. O saldo será atualizado automaticamente após o pagamento.
+            </p>
+            <p className="text-xs text-indigo-500 text-center">
+              Esta referência também está guardada no seu histórico de transações e foi enviada para o seu email.
             </p>
 
             <Button onClick={handleClose} className="w-full">

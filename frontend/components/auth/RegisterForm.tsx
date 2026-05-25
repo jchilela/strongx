@@ -194,7 +194,12 @@ export function RegisterForm() {
           {t.auth.createAccountBtn}
         </Button>
 
-        <p className="text-xs text-gray-400 text-center">{t.auth.agreeTerms}</p>
+        <p className="text-xs text-gray-400 text-center">
+          {t.auth.agreeTerms}{' '}
+          <Link href="/terms" target="_blank" className="underline hover:text-gray-600">{t.auth.termsLink}</Link>
+          {' '}{t.auth.and}{' '}
+          <Link href="/terms#privacidade" target="_blank" className="underline hover:text-gray-600">{t.auth.privacyLink}</Link>.
+        </p>
       </form>
 
       <p className="text-center text-sm text-gray-500 mt-6">

@@ -3,9 +3,9 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Users, Search, ChevronRight, Key,
+  Users, Search, Key,
   DollarSign, Shield, ShieldOff, RefreshCw, PlusCircle, KeyRound, Wallet,
-  TrendingUp, Crown, Trash2,
+  TrendingUp, Crown, Trash2, UserCog,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,7 +23,6 @@ import type { AdminUser } from '@/types/admin';
 import type { ApiKey } from '@/types/api';
 import { formatDate, formatCurrency } from '@/lib/utils';
 import { toast } from 'sonner';
-import Link from 'next/link';
 
 function ConfirmDialog({
   open,
@@ -302,42 +301,143 @@ function ApiKeysModal({
       adminApi.toggleApiKey(keyId, isActive),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-user-keys', user.id] });
-      toast.success('API key updated');
+      toast.success('Chave API atualizada');
     },
-    onError: () => toast.error('Failed to update key'),
+    onError: () => toast.error('Erro ao atualizar chave'),
   });
+
+  // Group keys by application
+  const grouped = keys?.reduce<Record<string, ApiKey[]>>((acc, key) => {
+    const appName = key.applicationName ?? 'Sem aplicação';
+    if (!acc[appName]) acc[appName] = [];
+    acc[appName].push(key);
+    return acc;
+  }, {});
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>API Keys — {user.name}</DialogTitle>
+          <DialogTitle>Chaves API — {user.name}</DialogTitle>
         </DialogHeader>
         {isLoading ? (
           <div className="py-8 flex justify-center"><RefreshCw className="h-5 w-5 animate-spin text-gray-400" /></div>
         ) : !keys?.length ? (
-          <p className="text-sm text-gray-500 py-4 text-center">No API keys found.</p>
+          <p className="text-sm text-gray-500 py-4 text-center">Nenhuma chave API encontrada.</p>
         ) : (
-          <div className="divide-y divide-gray-100 max-h-80 overflow-y-auto">
-            {keys.map((key) => (
-              <div key={key.id} className="flex items-center justify-between py-3 gap-3">
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{key.name}</p>
-                  <p className="text-xs text-gray-400 font-mono">{key.prefix}••••••••</p>
-                  {key.applicationName && (
-                    <p className="text-xs text-indigo-500">{key.applicationName}</p>
-                  )}
+          <div className="max-h-80 overflow-y-auto space-y-3">
+            {Object.entries(grouped ?? {}).map(([appName, appKeys]) => (
+              <div key={appName}>
+                <p className="text-xs font-semibold text-indigo-500 uppercase tracking-wider px-1 mb-1">{appName}</p>
+                <div className="divide-y divide-gray-100 border border-gray-100 rounded-lg">
+                  {appKeys.map((key) => (
+                    <div key={key.id} className="flex items-center justify-between px-3 py-2.5 gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">{key.name}</p>
+                        <p className="text-xs text-gray-400 font-mono">{key.prefix}••••••••</p>
+                      </div>
+                      <Switch
+                        checked={key.isActive}
+                        onCheckedChange={(checked) => toggle({ keyId: key.id, isActive: checked })}
+                      />
+                    </div>
+                  ))}
                 </div>
-                <Switch
-                  checked={key.isActive}
-                  onCheckedChange={(checked) => toggle({ keyId: key.id, isActive: checked })}
-                />
               </div>
             ))}
           </div>
         )}
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Fechar</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function UserProfileModal({
+  user,
+  open,
+  onOpenChange,
+}: {
+  user: AdminUser;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const queryClient = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [fullName, setFullName] = useState(user.name);
+
+  const { mutate: save, isPending } = useMutation({
+    mutationFn: () => adminApi.updateUserProfile(user.id, { fullName }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      toast.success('Perfil atualizado');
+      setEditing(false);
+    },
+    onError: () => toast.error('Erro ao atualizar perfil'),
+  });
+
+  const handleClose = () => {
+    setEditing(false);
+    setFullName(user.name);
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Perfil — {user.name}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="profile-name">Nome Completo</Label>
+            <Input
+              id="profile-name"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              disabled={!editing}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Email</Label>
+            <Input value={user.email} disabled />
+            <p className="text-xs text-gray-400">O email não pode ser alterado aqui. Contacte o suporte se necessário.</p>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Telefone</Label>
+            <Input value={user.phone} disabled />
+            <p className="text-xs text-gray-400">O telefone não pode ser alterado. Contacte o suporte se necessário.</p>
+          </div>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <p className="text-xs text-gray-400">Estado</p>
+              <p className="font-medium">{user.isActive ? 'Ativo' : 'Inativo'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-400">Registo</p>
+              <p className="font-medium">{formatDate(user.createdAt).split(',')[0]}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-400">Email verificado</p>
+              <p className="font-medium">{user.emailVerified ? 'Sim' : 'Não'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-400">Telefone verificado</p>
+              <p className="font-medium">{user.phoneVerified ? 'Sim' : 'Não'}</p>
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={handleClose}>Fechar</Button>
+          {editing ? (
+            <Button disabled={isPending || fullName.trim().length < 2} onClick={() => save()}>
+              {isPending ? 'A guardar...' : 'Guardar'}
+            </Button>
+          ) : (
+            <Button onClick={() => setEditing(true)}>Editar</Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -350,6 +450,7 @@ export function AdminUsersList() {
   const isSuperAdmin = currentUser?.isSuperAdmin ?? false;
 
   const [search, setSearch] = useState('');
+  const [profileUser, setProfileUser] = useState<AdminUser | null>(null);
   const [pricingUser, setPricingUser] = useState<AdminUser | null>(null);
   const [keysUser, setKeysUser] = useState<AdminUser | null>(null);
   const [fundsUser, setFundsUser] = useState<AdminUser | null>(null);
@@ -476,12 +577,6 @@ export function AdminUsersList() {
             className="pl-9"
           />
         </div>
-        <Link href="/admin/applications">
-          <Button variant="outline" size="sm">
-            <ChevronRight className="h-4 w-4 mr-1" />
-            Applications
-          </Button>
-        </Link>
       </div>
 
       {/* Table */}
@@ -540,6 +635,14 @@ export function AdminUsersList() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          title="Ver/editar perfil"
+                          onClick={() => setProfileUser(user)}
+                        >
+                          <UserCog className="h-4 w-4 text-slate-500" />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="sm"
@@ -623,6 +726,13 @@ export function AdminUsersList() {
       )}
 
       {/* Modals */}
+      {profileUser && (
+        <UserProfileModal
+          user={profileUser}
+          open={!!profileUser}
+          onOpenChange={(open) => { if (!open) setProfileUser(null); }}
+        />
+      )}
       {pricingUser && (
         <PricingModal
           user={pricingUser}

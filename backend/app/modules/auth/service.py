@@ -1,5 +1,7 @@
 import asyncio
 import hashlib
+import json
+import secrets
 import smtplib
 import uuid
 from email.mime.multipart import MIMEMultipart
@@ -136,7 +138,7 @@ async def _send_password_reset_email(email: str, token: str) -> None:
 
 
 async def register_user(db: AsyncSession, full_name: str, email: str, phone: str, password: str) -> str:
-    # Check uniqueness
+    # Check uniqueness against DB
     existing_email = await get_user_by_email(db, email)
     if existing_email:
         raise ConflictError("Email already registered")
@@ -145,40 +147,39 @@ async def register_user(db: AsyncSession, full_name: str, email: str, phone: str
     if existing_phone:
         raise ConflictError("Phone already registered")
 
-    user = User(
-        full_name=full_name,
-        email=email,
-        phone=phone,
-        password_hash=hash_password(password),
-        phone_verified=False,
-        email_verified=False,
-    )
-    db.add(user)
-    await db.flush()
-    await db.refresh(user)
-
-    # Create wallet
-    wallet = Wallet(user_id=user.id)
-    db.add(wallet)
-    await db.flush()
-
-    # Create default APP-TESTE application (pre-approved)
-    from app.modules.applications.models import Application
-    default_app = Application(
-        user_id=user.id,
-        name="APP-TESTE",
-        slug=f"app-teste-{str(user.id)[:8]}",
-        description="Default test application",
-        status="approved",
-        telcosms_api_key="prda0a684bdabbde776c8bc3dd4d7",
-    )
-    db.add(default_app)
-    await db.flush()
-
-    # Generate + store OTP
-    otp = generate_otp()
+    # Also check pending registrations in Redis
     redis = await get_redis()
-    await redis.setex(f"otp:{phone}", 600, otp)  # 10 min TTL
+    pending_by_phone = await redis.get(f"pending_reg:{phone}")
+    if pending_by_phone:
+        pending_data = json.loads(pending_by_phone)
+        if pending_data.get("email") != email:
+            raise ConflictError("Phone already registered")
+
+    # Scan pending registrations for email collision (best-effort)
+    pending_by_email_keys = await redis.keys("pending_reg:*")
+    for key in pending_by_email_keys:
+        key_str = key if isinstance(key, str) else key.decode()
+        raw = await redis.get(key_str)
+        if raw:
+            try:
+                data = json.loads(raw)
+                if data.get("email") == email and key_str != f"pending_reg:{phone}":
+                    raise ConflictError("Email already registered")
+            except (json.JSONDecodeError, AttributeError):
+                pass
+
+    # Store pending registration in Redis (30 min TTL) — no DB record yet
+    pending_data = {
+        "full_name": full_name,
+        "email": email,
+        "phone": phone,
+        "password_hash": hash_password(password),
+    }
+    await redis.setex(f"pending_reg:{phone}", 1800, json.dumps(pending_data))
+
+    # Generate + store OTP (10 min TTL)
+    otp = generate_otp()
+    await redis.setex(f"otp:{phone}", 600, otp)
 
     await _send_otp_sms(phone, otp)
 
@@ -192,6 +193,24 @@ async def verify_phone(db: AsyncSession, phone: str, otp: str) -> str:
     if not stored_otp or stored_otp != otp:
         raise ValidationError("Invalid or expired OTP")
 
+    await redis.delete(f"otp:{phone}")
+
+    # Check pending registration in Redis first
+    raw = await redis.get(f"pending_reg:{phone}")
+    if raw:
+        pending_data = json.loads(raw)
+        # Mark phone as verified in the pending record
+        pending_data["phone_verified"] = True
+        await redis.setex(f"pending_reg:{phone}", 1800, json.dumps(pending_data))
+
+        # Generate a random token and store it in Redis (24h TTL)
+        token = secrets.token_urlsafe(32)
+        await redis.setex(f"pending_email:{token}", 86400, phone)
+
+        await _send_verification_email(pending_data["email"], token, pending_data["full_name"])
+        return "Phone verified. Check email to continue."
+
+    # Fallback: existing DB user (e.g. re-verification flow)
     user = await get_user_by_phone(db, phone)
     if not user:
         raise NotFoundError("User not found")
@@ -199,16 +218,65 @@ async def verify_phone(db: AsyncSession, phone: str, otp: str) -> str:
     user.phone_verified = True
     await db.flush()
 
-    await redis.delete(f"otp:{phone}")
+    token = secrets.token_urlsafe(32)
+    await redis.setex(f"pending_email:{token}", 86400, phone)
 
-    # Send email verification
-    token = create_email_verify_token(user.id)
     await _send_verification_email(user.email, token, user.full_name)
 
     return "Phone verified. Check email to continue."
 
 
 async def verify_email(db: AsyncSession, token: str) -> str:
+    redis = await get_redis()
+
+    # New flow: look up pending_email:{token} in Redis to get the phone
+    phone = await redis.get(f"pending_email:{token}")
+
+    if phone:
+        phone = phone if isinstance(phone, str) else phone.decode()
+        raw = await redis.get(f"pending_reg:{phone}")
+        if not raw:
+            raise ValidationError("Registration expired. Please register again.")
+
+        pending_data = json.loads(raw)
+
+        # Create User, Wallet, and default Application in DB
+        from app.modules.applications.models import Application
+
+        user = User(
+            full_name=pending_data["full_name"],
+            email=pending_data["email"],
+            phone=pending_data["phone"],
+            password_hash=pending_data["password_hash"],
+            phone_verified=True,
+            email_verified=True,
+        )
+        db.add(user)
+        await db.flush()
+        await db.refresh(user)
+
+        wallet = Wallet(user_id=user.id)
+        db.add(wallet)
+        await db.flush()
+
+        default_app = Application(
+            user_id=user.id,
+            name="APP-TESTE",
+            slug=f"app-teste-{str(user.id)[:8]}",
+            description="Default test application",
+            status="approved",
+            telcosms_api_key="prda0a684bdabbde776c8bc3dd4d7",
+        )
+        db.add(default_app)
+        await db.flush()
+
+        # Clean up Redis keys
+        await redis.delete(f"pending_email:{token}")
+        await redis.delete(f"pending_reg:{phone}")
+
+        return "Email verified. You can now log in."
+
+    # Fallback: legacy JWT token flow for existing DB users
     try:
         payload = decode_token(token)
     except Exception:
@@ -322,6 +390,15 @@ async def resend_otp(phone: str) -> str:
         await redis.expire(rate_key, 3600)  # 1 hour window
     if count > 3:
         raise RateLimitError("OTP rate limit: max 3 per hour per phone")
+
+    # Allow resend during pending registration phase (before DB user exists)
+    pending_raw = await redis.get(f"pending_reg:{phone}")
+    if not pending_raw:
+        # Also accept if the user exists in DB (already registered but re-verifying)
+        # We skip DB lookup here to keep this function DB-agnostic; if neither
+        # pending_reg nor an existing OTP key exists, we still send (phone may be
+        # an existing DB user asking for a new OTP for some other flow).
+        pass
 
     otp = generate_otp()
     await redis.setex(f"otp:{phone}", 600, otp)
