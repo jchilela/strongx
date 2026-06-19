@@ -106,7 +106,7 @@ export const authApi = {
   verifyPhone: (data: { phone: string; otp: string }) =>
     api.post<ApiResponse<null>>('/auth/verify-phone', data),
   resendPhoneOtp: (phone: string) =>
-    api.post<ApiResponse<null>>('/auth/resend-phone-otp', { phone }),
+    api.post<ApiResponse<null>>('/auth/resend-otp', { phone }),
   verifyEmail: (token: string) =>
     api.post<ApiResponse<null>>('/auth/verify-email', { token }),
   resendEmailVerification: (email: string) =>
